@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Sold">
+<title>Sold: barcode to eBay sold prices</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ffffff;
+    --surface: #f0f0ec;
+    --ink: #000000;
+    --muted: #6b6b63;
+    --rule: #d5d5cd;
+    --dayglo: #ddff1c;
+    --lens: #111111;
+    --pad: 18px;
+    --radius: 4px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-variation-settings: "wdth" 100, "wght" 400;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px var(--pad) 12px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .mark {
+    font-variation-settings: "wdth" 70, "wght" 900;
+    font-size: 26px;
+    line-height: 1;
+    letter-spacing: 0.01em;
+  }
+
+  .mark em {
+    font-style: normal;
+    background: var(--dayglo);
+    padding: 0 4px;
+  }
+
+  .site-picker {
+    font-family: inherit;
+    font-size: 14px;
+    font-variation-settings: "wdth" 90, "wght" 600;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 6px 8px;
+  }
+
+  /* ---------- viewfinder ---------- */
+
+  .lens {
+    position: relative;
+    background: var(--lens);
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+  }
+
+  .lens video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .guides {
+    position: absolute;
+    inset: 18% 10%;
+    pointer-events: none;
+    border-left: 3px solid var(--dayglo);
+    border-right: 3px solid var(--dayglo);
+    opacity: 0.85;
+  }
+
+  .guides::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: -3px;
+    right: -3px;
+    height: 2px;
+    background: var(--dayglo);
+    opacity: 0.55;
+  }
+
+  .lens-msg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 24px;
+    color: #ffffff;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .lens-msg strong {
+    font-variation-settings: "wdth" 80, "wght" 800;
+    font-size: 19px;
+    display: block;
+  }
+
+  .lens-msg[hidden] { display: none; }
+
+  .flash {
+    position: absolute;
+    inset: 0;
+    background: var(--dayglo);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .flash.fire { animation: wipe 320ms ease-out; }
+
+  @keyframes wipe {
+    0% { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
+
+  .torch {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-variation-settings: "wdth" 85, "wght" 700;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.5);
+    border-radius: var(--radius);
+    padding: 9px 12px;
+  }
+
+  .torch[aria-pressed="true"] {
+    background: var(--dayglo);
+    color: var(--ink);
+    border-color: var(--dayglo);
+  }
+
+  /* ---------- readout ---------- */
+
+  .readout {
+    padding: 16px var(--pad) 4px;
+  }
+
+  .digits {
+    font-variation-settings: "wdth" 68, "wght" 800;
+    font-size: clamp(30px, 10vw, 46px);
+    letter-spacing: 0.16em;
+    line-height: 1;
+    min-height: 46px;
+    color: var(--ink);
+    word-break: break-all;
+  }
+
+  .digits.idle {
+    color: var(--rule);
+  }
+
+  .provenance {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    min-height: 18px;
+  }
+
+  .term-row {
+    padding: 12px var(--pad) 0;
+  }
+
+  .term-label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .term {
+    width: 100%;
+    font-family: inherit;
+    font-size: 17px;
+    font-variation-settings: "wdth" 95, "wght" 500;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 13px 12px;
+  }
+
+  .term:focus-visible,
+  .site-picker:focus-visible,
+  button:focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* ---------- actions ---------- */
+
+  .actions {
+    padding: 14px var(--pad) 20px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .go {
+    font-family: inherit;
+    font-variation-settings: "wdth" 78, "wght" 900;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    background: var(--dayglo);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 20px 14px;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .go:disabled {
+    background: var(--surface);
+    color: var(--rule);
+    border-color: var(--rule);
+    cursor: default;
+  }
+
+  .secondary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .alt {
+    font-family: inherit;
+    font-variation-settings: "wdth" 88, "wght" 700;
+    font-size: 15px;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 14px 10px;
+    cursor: pointer;
+  }
+
+  .alt:disabled {
+    color: var(--rule);
+    border-color: var(--rule);
+    cursor: default;
+  }
+
+  .rescan {
+    font-family: inherit;
+    font-variation-settings: "wdth" 88, "wght" 700;
+    font-size: 15px;
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 14px 10px;
+    cursor: pointer;
+  }
+
+  /* ---------- history ---------- */
+
+  .history {
+    border-top: 2px solid var(--ink);
+    padding: 14px var(--pad) 28px;
+  }
+
+  .history-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .history-head h2 {
+    margin: 0;
+    font-size: 16px;
+    font-variation-settings: "wdth" 82, "wght" 800;
+  }
+
+  .clear {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    padding: 4px;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .history ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .history li {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .history button.recall {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+    font-family: inherit;
+    font-size: 15px;
+    background: none;
+    border: none;
+    padding: 13px 2px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .history .when {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .empty {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 4px 0 0;
+  }
+
+  .footnote {
+    padding: 0 var(--pad) 24px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flash.fire { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="mark">SO<em>LD</em></div>
+    <label>
+      <select class="site-picker" id="site" aria-label="eBay site">
+        <option value="co.uk" selected>eBay UK</option>
+        <option value="com">eBay US</option>
+        <option value="ie">eBay IE</option>
+        <option value="de">eBay DE</option>
+      </select>
+    </label>
+  </header>
+
+  <section class="lens" id="lens">
+    <video id="video" playsinline muted autoplay></video>
+    <div class="guides" id="guides" hidden></div>
+    <div class="flash" id="flash"></div>
+    <div class="lens-msg" id="lensMsg">
+      <strong>Camera off</strong>
+      <span id="lensMsgBody">Tap start scanning to look up a barcode.</span>
+    </div>
+    <button class="torch" id="torch" aria-pressed="false" hidden>Torch</button>
+  </section>
+
+  <section class="readout">
+    <div class="digits idle" id="digits">- - - - - - -</div>
+    <div class="provenance" id="provenance"></div>
+  </section>
+
+  <div class="term-row">
+    <label class="term-label" for="term">Search eBay for</label>
+    <input class="term" id="term" type="search" inputmode="search" autocomplete="off"
+           placeholder="Scan a barcode, or type a product name" enterkeyhint="search">
+  </div>
+
+  <div class="actions">
+    <button class="go" id="sold" disabled>See sold prices</button>
+    <div class="secondary">
+      <button class="alt" id="live" disabled>Live listings</button>
+      <button class="rescan" id="scan">Start scanning</button>
+    </div>
+  </div>
+
+  <section class="history">
+    <div class="history-head">
+      <h2>Recent scans</h2>
+      <button class="clear" id="clear" hidden>Clear</button>
+    </div>
+    <ul id="list"></ul>
+    <p class="empty" id="empty">Nothing scanned yet. Your last 40 lookups stay on this device.</p>
+  </section>
+
+  <p class="footnote">
+    Sold prices open on eBay in a new tab. eBay requires you to be signed in to view them,
+    so sign in once on this device and every lookup after that goes straight through.
+  </p>
+
+</div>
+
+<script type="module">
+  const el = {
+    video: document.getElementById('video'),
+    lensMsg: document.getElementById('lensMsg'),
+    lensMsgBody: document.getElementById('lensMsgBody'),
+    guides: document.getElementById('guides'),
+    flash: document.getElementById('flash'),
+    torch: document.getElementById('torch'),
+    digits: document.getElementById('digits'),
+    provenance: document.getElementById('provenance'),
+    term: document.getElementById('term'),
+    sold: document.getElementById('sold'),
+    live: document.getElementById('live'),
+    scan: document.getElementById('scan'),
+    site: document.getElementById('site'),
+    list: document.getElementById('list'),
+    empty: document.getElementById('empty'),
+    clear: document.getElementById('clear')
+  };
+
+  const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'];
+  const STORE_KEY = 'sold.history.v1';
+  const SITE_KEY = 'sold.site.v1';
+
+  let detector = null;
+  let stream = null;
+  let scanning = false;
+  let lastBarcode = '';
+  let history = [];
+
+  /* ---------- storage, best effort ---------- */
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) history = JSON.parse(raw);
+      const site = localStorage.getItem(SITE_KEY);
+      if (site) el.site.value = site;
+    } catch (err) {
+      history = [];
+    }
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(history.slice(0, 40)));
+      localStorage.setItem(SITE_KEY, el.site.value);
+    } catch (err) {
+      /* private mode or sandboxed, keep going in memory */
+    }
+  }
+
+  /* ---------- detector setup ---------- */
+
+  async function getDetector() {
+    if (detector) return detector;
+
+    if ('BarcodeDetector' in window) {
+      try {
+        const supported = await window.BarcodeDetector.getSupportedFormats();
+        if (supported.includes('ean_13')) {
+          detector = new window.BarcodeDetector({
+            formats: FORMATS.filter(f => supported.includes(f))
+          });
+          return detector;
+        }
+      } catch (err) {
+        /* fall through to the ponyfill */
+      }
+    }
+
+    let mod;
+    try {
+      mod = await import('https://esm.sh/barcode-detector@3/pure');
+    } catch (err) {
+      mod = await import('https://esm.sh/barcode-detector/pure');
+    }
+    detector = new mod.BarcodeDetector({ formats: FORMATS });
+    return detector;
+  }
+
+  /* ---------- camera ---------- */
+
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showLensMessage('No camera access', 'This browser will not share a camera. Type a product name instead.');
+      return false;
+    }
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+    } catch (err) {
+      const secure = window.isSecureContext;
+      showLensMessage(
+        secure ? 'Camera blocked' : 'Needs HTTPS',
+        secure
+          ? 'Allow camera access for this site in your browser settings, then tap start scanning again.'
+          : 'Browsers only share a camera over HTTPS. Host this page on a secure address and reload.'
+      );
+      return false;
+    }
+
+    el.video.srcObject = stream;
+    await el.video.play().catch(() => {});
+    setupTorch();
+    return true;
+  }
+
+  function stopCamera() {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null;
+    el.torch.hidden = true;
+    el.torch.setAttribute('aria-pressed', 'false');
+  }
+
+  function setupTorch() {
+    const track = stream && stream.getVideoTracks()[0];
+    if (!track || !track.getCapabilities) return;
+    let caps = {};
+    try { caps = track.getCapabilities(); } catch (err) { return; }
+    if (caps.torch) el.torch.hidden = false;
+  }
+
+  el.torch.addEventListener('click', async () => {
+    const track = stream && stream.getVideoTracks()[0];
+    if (!track) return;
+    const on = el.torch.getAttribute('aria-pressed') === 'true';
+    try {
+      await track.applyConstraints({ advanced: [{ torch: !on }] });
+      el.torch.setAttribute('aria-pressed', String(!on));
+    } catch (err) {
+      el.torch.hidden = true;
+    }
+  });
+
+  function showLensMessage(title, body) {
+    el.lensMsg.hidden = false;
+    el.lensMsg.querySelector('strong').textContent = title;
+    el.lensMsgBody.textContent = body;
+    el.guides.hidden = true;
+  }
+
+  function hideLensMessage() {
+    el.lensMsg.hidden = true;
+    el.guides.hidden = false;
+  }
+
+  /* ---------- scan loop ---------- */
+
+  async function startScanning() {
+    if (scanning) return;
+    el.scan.textContent = 'Starting';
+    el.scan.disabled = true;
+
+    let det;
+    try {
+      det = await getDetector();
+    } catch (err) {
+      showLensMessage('Scanner unavailable', 'The barcode library did not load. Check your connection, or type a product name instead.');
+      el.scan.textContent = 'Start scanning';
+      el.scan.disabled = false;
+      return;
+    }
+
+    const ok = await startCamera();
+    if (!ok) {
+      el.scan.textContent = 'Start scanning';
+      el.scan.disabled = false;
+      return;
+    }
+
+    scanning = true;
+    hideLensMessage();
+    el.scan.textContent = 'Stop';
+    el.scan.disabled = false;
+    tick(det);
+  }
+
+  function stopScanning(message) {
+    scanning = false;
+    stopCamera();
+    el.scan.textContent = 'Start scanning';
+    el.scan.disabled = false;
+    if (message) showLensMessage(message.title, message.body);
+  }
+
+  async function tick(det) {
+    while (scanning) {
+      if (el.video.readyState >= 2) {
+        try {
+          const hits = await det.detect(el.video);
+          if (hits && hits.length) {
+            onDetected(hits[0].rawValue.trim());
+            return;
+          }
+        } catch (err) {
+          /* a dropped frame is not an error worth surfacing */
+        }
+      }
+      await new Promise(r => setTimeout(r, 140));
+    }
+  }
+
+  /* ---------- result handling ---------- */
+
+  function onDetected(code) {
+    if (!code || code === lastBarcode) return;
+    lastBarcode = code;
+
+    el.flash.classList.remove('fire');
+    void el.flash.offsetWidth;
+    el.flash.classList.add('fire');
+    if (navigator.vibrate) navigator.vibrate(45);
+
+    stopScanning({ title: 'Scanned', body: 'Tap start scanning for the next item.' });
+
+    el.digits.textContent = code;
+    el.digits.classList.remove('idle');
+    setTerm(code);
+    el.provenance.textContent = 'Looking up a product name';
+
+    lookupName(code).then(name => {
+      if (name) {
+        setTerm(name);
+        el.provenance.textContent = 'Name from a public barcode database. Edit it if it is wrong.';
+        record(code, name);
+      } else {
+        el.provenance.textContent = 'No name found, searching by barcode number instead.';
+        record(code, code);
+      }
+    });
+  }
+
+  function setTerm(value) {
+    el.term.value = value;
+    syncButtons();
+  }
+
+  function syncButtons() {
+    const has = el.term.value.trim().length > 0;
+    el.sold.disabled = !has;
+    el.live.disabled = !has;
+  }
+
+  /* ---------- barcode to product name ---------- */
+
+  async function lookupName(code) {
+    const off = await tryOpenFoodFacts(code);
+    if (off) return off;
+    const upc = await tryUpcItemDb(code);
+    if (upc) return upc;
+    return null;
+  }
+
+  async function tryOpenFoodFacts(code) {
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.status !== 1 || !data.product) return null;
+      const parts = [data.product.brands, data.product.product_name].filter(Boolean);
+      return parts.length ? parts.join(' ') : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async function tryUpcItemDb(code) {
+    try {
+      const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const item = data.items && data.items[0];
+      if (!item) return null;
+      return [item.brand, item.title].filter(Boolean).join(' ').trim() || null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  /* ---------- eBay links ---------- */
+
+  function ebayUrl(term, sold) {
+    const base = `https://www.ebay.${el.site.value}/sch/i.html`;
+    const params = new URLSearchParams({ _nkw: term });
+    if (sold) {
+      params.set('LH_Sold', '1');
+      params.set('LH_Complete', '1');
+    }
+    return `${base}?${params.toString()}`;
+  }
+
+  function openTab(url) {
+    window.open(url, '_blank', 'noopener');
+  }
+
+  el.sold.addEventListener('click', () => {
+    const term = el.term.value.trim();
+    if (!term) return;
+    record(lastBarcode || term, term);
+    openTab(ebayUrl(term, true));
+  });
+
+  el.live.addEventListener('click', () => {
+    const term = el.term.value.trim();
+    if (!term) return;
+    openTab(ebayUrl(term, false));
+  });
+
+  el.scan.addEventListener('click', () => {
+    if (scanning) {
+      stopScanning({ title: 'Camera off', body: 'Tap start scanning to look up a barcode.' });
+    } else {
+      lastBarcode = '';
+      startScanning();
+    }
+  });
+
+  el.term.addEventListener('input', syncButtons);
+  el.term.addEventListener('keydown', e => {
+    if (e.key === 'Enter') el.sold.click();
+  });
+  el.site.addEventListener('change', save);
+
+  /* ---------- history ---------- */
+
+  function record(code, label) {
+    history = history.filter(h => h.label !== label);
+    history.unshift({ code, label, at: Date.now() });
+    history = history.slice(0, 40);
+    save();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    el.list.innerHTML = '';
+    el.empty.hidden = history.length > 0;
+    el.clear.hidden = history.length === 0;
+
+    history.forEach(entry => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.className = 'recall';
+      btn.type = 'button';
+
+      const label = document.createElement('span');
+      label.textContent = entry.label;
+
+      const when = document.createElement('span');
+      when.className = 'when';
+      when.textContent = new Date(entry.at).toLocaleTimeString('en-GB', {
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      btn.append(label, when);
+      btn.addEventListener('click', () => {
+        lastBarcode = entry.code;
+        el.digits.textContent = entry.code;
+        el.digits.classList.remove('idle');
+        el.provenance.textContent = 'From your recent scans.';
+        setTerm(entry.label);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      li.append(btn);
+      el.list.append(li);
+    });
+  }
+
+  el.clear.addEventListener('click', () => {
+    history = [];
+    save();
+    renderHistory();
+  });
+
+  /* ---------- installable on Android ---------- */
+
+  try {
+    const manifest = {
+      name: 'Sold: barcode to eBay sold prices',
+      short_name: 'Sold',
+      display: 'standalone',
+      background_color: '#ffffff',
+      theme_color: '#000000',
+      start_url: location.href
+    };
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/json' }));
+    document.head.append(link);
+  } catch (err) {
+    /* not installable, still perfectly usable in a tab */
+  }
+
+  load();
+  renderHistory();
+  syncButtons();
+</script>
+</body>
+</html>
