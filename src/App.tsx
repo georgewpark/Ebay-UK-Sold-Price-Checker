@@ -8,13 +8,8 @@ import { useScanner } from './hooks/useScanner.ts'
 import { warmDecoder } from './lib/decoder.ts'
 import { ebayUrl, openTab } from './lib/ebay.ts'
 import { lookupName } from './lib/lookup.ts'
+import { NO_STATUS, describeLookup, recalled, scanned } from './lib/status.ts'
 import type { ScanEntry, ScanStatus } from './lib/types.ts'
-
-const NO_STATUS: ScanStatus = { caption: '', spoken: '' }
-
-function spell(code: string): string {
-  return code.split('').join(' ')
-}
 
 export default function App() {
   const [code, setCode] = useState('')
@@ -41,7 +36,7 @@ export default function App() {
   useEffect(() => () => lookup.current?.abort(), [])
 
   const handleDetect = useCallback(
-    (scanned: string) => {
+    (value: string) => {
       setFlashKey((key) => key + 1)
       navigator.vibrate?.(45)
 
@@ -49,29 +44,15 @@ export default function App() {
       const attempt = new AbortController()
       lookup.current = attempt
 
-      setCode(scanned)
-      setTerm(scanned)
-      setStatus({
-        caption: 'Looking up a product name',
-        spoken: `Barcode ${spell(scanned)} scanned. Looking up a product name.`,
-      })
+      setCode(value)
+      setTerm(value)
+      setStatus(scanned(value))
 
-      void lookupName(scanned, attempt.signal).then((name) => {
+      void lookupName(value, attempt.signal).then((result) => {
         if (attempt.signal.aborted) return
-        if (name) {
-          setTerm(name)
-          setStatus({
-            caption: 'Name from a public barcode database. Edit it if it is wrong.',
-            spoken: `Found ${name}. Name from a public barcode database. Edit it if it is wrong.`,
-          })
-          record(scanned, name)
-        } else {
-          setStatus({
-            caption: 'No name found, so we will search the barcode number instead.',
-            spoken: `No name found for barcode ${spell(scanned)}. We will search the number instead.`,
-          })
-          record(scanned, scanned)
-        }
+        if (result.name) setTerm(result.name)
+        setStatus(describeLookup(result, value))
+        record(value, result.name ?? value)
       })
     },
     [record],
@@ -99,10 +80,7 @@ export default function App() {
 
     setCode(entry.code)
     setTerm(entry.label)
-    setStatus({
-      caption: 'From your recent scans.',
-      spoken: `${entry.label}, from your recent scans.`,
-    })
+    setStatus(recalled(entry.label))
 
     termRef.current?.focus({ preventScroll: true })
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
