@@ -33,6 +33,15 @@ export function useScanner(onDetect: (code: string) => void) {
   const startingRef = useRef(false)
   const onDetectRef = useRef(onDetect)
 
+  /**
+   * Bumped by every start and every stop. Starting awaits three times before
+   * the camera is live, and a visibility change during any of those awaits used
+   * to leave a stream running behind a hidden tab: stop released a stream that
+   * had not been assigned yet, then getUserMedia resolved and started one.
+   * Comparing the generation after each await closes that window.
+   */
+  const generation = useRef(0)
+
   // Mutating a ref during render is not safe under concurrent rendering, and a
   // scan cannot begin before commit anyway, so keep the sync in an effect.
   useEffect(() => {
@@ -53,6 +62,7 @@ export function useScanner(onDetect: (code: string) => void) {
 
   const stop = useCallback(
     (message: Notice = IDLE_NOTICE) => {
+      generation.current += 1
       runningRef.current = false
       startingRef.current = false
       releaseCamera()
@@ -66,6 +76,9 @@ export function useScanner(onDetect: (code: string) => void) {
   // whole hook result can stay referentially stable between renders.
   const start = useCallback(async () => {
     if (runningRef.current || startingRef.current) return
+    const run = (generation.current += 1)
+    const current = () => generation.current === run
+
     startingRef.current = true
     setStatus('starting')
     setNotice(null)
@@ -74,15 +87,19 @@ export function useScanner(onDetect: (code: string) => void) {
     try {
       decoder = await openDecoder()
     } catch {
-      stop({
-        title: 'Scanner unavailable',
-        body: 'The barcode reader did not load. Check your connection, or type a product name instead.',
-      })
+      if (current()) {
+        stop({
+          title: 'Scanner unavailable',
+          body: 'The barcode reader did not load. Check your connection, or type a product name instead.',
+        })
+      }
       return
     }
+    if (!current()) return
 
+    let stream: MediaStream
     try {
-      streamRef.current = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         // 720p starts faster than 1080p and, once cropped to the reticle, still
         // carries far more detail than the decoder needs.
         video: {
@@ -93,27 +110,41 @@ export function useScanner(onDetect: (code: string) => void) {
         audio: false,
       })
     } catch {
-      const secure = window.isSecureContext
-      stop({
-        title: secure ? 'Camera blocked' : 'Needs HTTPS',
-        body: secure
-          ? 'Allow camera access for this site in your browser settings, then try again.'
-          : 'Browsers only share a camera over HTTPS. Open this page on a secure address and reload.',
-      })
+      if (current()) {
+        const secure = window.isSecureContext
+        stop({
+          title: secure ? 'Camera blocked' : 'Needs HTTPS',
+          body: secure
+            ? 'Allow camera access for this site in your browser settings, then try again.'
+            : 'Browsers only share a camera over HTTPS. Open this page on a secure address and reload.',
+        })
+      }
+      return
+    }
+
+    // Only adopt the stream once we know nobody asked us to stop while the
+    // permission prompt was open.
+    if (!current()) {
+      stream.getTracks().forEach((track) => track.stop())
       return
     }
 
     const video = videoRef.current
     if (!video) {
+      stream.getTracks().forEach((track) => track.stop())
       stop()
       return
     }
-    video.srcObject = streamRef.current
-    await video.play().catch(() => {})
 
-    const track = streamRef.current.getVideoTracks()[0]
+    streamRef.current = stream
+    video.srcObject = stream
+    await video.play().catch(() => {})
+    if (!current()) return
+
+    const track = stream.getVideoTracks()[0]
     try {
-      setTorchAvailable(Boolean(track?.getCapabilities?.() && 'torch' in track.getCapabilities()))
+      const capabilities = track?.getCapabilities?.()
+      setTorchAvailable(Boolean(capabilities && 'torch' in capabilities))
     } catch {
       setTorchAvailable(false)
     }
@@ -124,11 +155,13 @@ export function useScanner(onDetect: (code: string) => void) {
 
     const grabber = createFrameGrabber()
 
-    while (runningRef.current) {
+    while (current() && runningRef.current) {
       if (video.readyState >= 2 && !document.hidden) {
         const frame = grabber.grab(video)
         if (frame) {
           const value = await decoder.decode(frame)
+          if (!current()) break
+
           if (value) {
             stop({ title: 'Scanned', body: 'Start the scanner again for the next item.' })
             grabber.release()
@@ -168,6 +201,7 @@ export function useScanner(onDetect: (code: string) => void) {
   // Never leave the camera running behind us.
   useEffect(() => {
     return () => {
+      generation.current += 1
       runningRef.current = false
       startingRef.current = false
       streamRef.current?.getTracks().forEach((track) => track.stop())
