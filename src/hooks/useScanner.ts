@@ -19,11 +19,45 @@ const HIDDEN_NOTICE: Notice = {
   body: 'We switched the camera off when you left the page. Start it again to scan.',
 }
 
-/** Gap between decode attempts. Detection itself is awaited, so this is a floor. */
-const FRAME_INTERVAL = 140
+/** Floor between decode attempts. The decoder runs off-thread, so this is about
+    not burning battery on frames the camera has not replaced yet. */
+const FRAME_INTERVAL = 100
+
+/** If the video stalls, stop waiting on it and re-check whether we should run. */
+const STALL_TIMEOUT = 1000
 
 interface TorchConstraint {
   torch: boolean
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Resolve on the next frame the camera actually delivers, rather than on a
+ * fixed timer that happily decodes the same frame twice. Falls back to the
+ * timer where requestVideoFrameCallback is missing, and gives up after a stall
+ * so a frozen stream cannot strand the loop.
+ */
+function nextFrame(video: HTMLVideoElement): Promise<void> {
+  const request = video.requestVideoFrameCallback?.bind(video)
+  if (!request) return sleep(FRAME_INTERVAL)
+
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      resolve()
+    }
+    const handle = request(finish)
+    setTimeout(() => {
+      if (done) return
+      video.cancelVideoFrameCallback?.(handle)
+      finish()
+    }, STALL_TIMEOUT)
+  })
 }
 
 export function useScanner(onDetect: (code: string) => void) {
@@ -155,24 +189,27 @@ export function useScanner(onDetect: (code: string) => void) {
 
     const grabber = createFrameGrabber()
 
-    while (current() && runningRef.current) {
-      if (video.readyState >= 2 && !document.hidden) {
-        const frame = grabber.grab(video)
-        if (frame) {
-          const value = await decoder.decode(frame)
-          if (!current()) break
+    try {
+      while (current() && runningRef.current) {
+        if (video.readyState >= 2 && !document.hidden) {
+          const frame = grabber.grab(video)
+          if (frame) {
+            const value = await decoder.decode(frame)
+            if (!current()) break
 
-          if (value) {
-            stop({ title: 'Scanned', body: 'Start the scanner again for the next item.' })
-            grabber.release()
-            onDetectRef.current(value)
-            return
+            if (value) {
+              stop({ title: 'Scanned', body: 'Start the scanner again for the next item.' })
+              onDetectRef.current(value)
+              break
+            }
           }
         }
+        // Wait for a new frame, and never run faster than the floor.
+        await Promise.all([nextFrame(video), sleep(FRAME_INTERVAL)])
       }
-      await new Promise((resolve) => setTimeout(resolve, FRAME_INTERVAL))
+    } finally {
+      grabber.release()
     }
-    grabber.release()
   }, [stop])
 
   const toggleTorch = useCallback(async () => {
