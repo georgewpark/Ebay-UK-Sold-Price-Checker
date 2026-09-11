@@ -2,6 +2,7 @@ import { createRequire } from 'node:module'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 const require = createRequire(import.meta.url)
 
@@ -70,7 +71,61 @@ function preloadBodyFont(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), preloadBodyFont()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    preloadBodyFont(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      // The manifest is hand-written and served from public/, so the plugin
+      // should cache it rather than generate a second one.
+      manifest: false,
+      includeAssets: [],
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,woff2,svg,png,webmanifest}'],
+        /**
+         * Deliberately not the 1 MB decoder. Only Safari and Firefox ever ask
+         * for it, so precaching would charge every Chrome user for a file they
+         * will never open. The runtime rule below catches it on first use.
+         */
+        globIgnores: ['**/*.wasm'],
+        navigateFallback: 'index.html',
+        cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'decoder-wasm',
+              // Content-hashed, so a hit is always the right binary.
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 180 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            /**
+             * Product names do not change, and a scan you have made before
+             * should still resolve in a shop with no signal. Revalidate in the
+             * background so a correction upstream still reaches us eventually.
+             */
+            urlPattern: ({ url }) =>
+              url.hostname === 'world.openfoodfacts.org' || url.hostname === 'api.upcitemdb.com',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'barcode-names',
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
+      },
+      devOptions: {
+        // Off by default: a service worker caching a dev server is a good way
+        // to spend an afternoon debugging a stale bundle.
+        enabled: false,
+      },
+    }),
+  ],
   worker: {
     /**
      * Vite defaults workers to iife, which cannot code-split, so the dynamic
