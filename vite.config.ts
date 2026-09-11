@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -28,8 +28,49 @@ function assertOneDecoderCopy(): void {
 
 assertOneDecoderCopy()
 
+/**
+ * The body font is declared inside the CSS bundle, so the browser cannot see it
+ * until the stylesheet has downloaded and parsed. That is one round trip of
+ * invisible text on the slowest connection. The filename is hashed, so read it
+ * back out of the bundle and inject the preload at build time.
+ *
+ * Only the latin sans face: latin-ext and the mono face are both conditional,
+ * and preloading a font nothing on screen needs is worse than not preloading.
+ */
+function preloadBodyFont(): Plugin {
+  let base = '/'
+  return {
+    name: 'preload-body-font',
+    configResolved(config) {
+      base = config.base
+    },
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        const file = Object.keys(ctx.bundle ?? {}).find((name) =>
+          /geist-latin-wght-normal.*\.woff2$/.test(name),
+        )
+        if (!file) return
+        return [
+          {
+            tag: 'link',
+            attrs: {
+              rel: 'preload',
+              as: 'font',
+              type: 'font/woff2',
+              href: `${base}${file}`,
+              crossorigin: '',
+            },
+            injectTo: 'head-prepend',
+          },
+        ]
+      },
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), preloadBodyFont()],
   worker: {
     /**
      * Vite defaults workers to iife, which cannot code-split, so the dynamic
