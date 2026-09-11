@@ -10,6 +10,14 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    /**
+     * Building a fresh jsdom per file was 71% of the run. vmThreads reuses one
+     * per worker while still giving each file its own module registry, which
+     * this suite needs: lookup.ts caches names and decoder.ts caches the worker
+     * in module scope, so sharing those across files would make the order tests
+     * run in part of whether they pass.
+     */
+    pool: 'vmThreads',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     restoreMocks: true,
