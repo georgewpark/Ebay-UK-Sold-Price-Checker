@@ -17,7 +17,9 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "icons": "node scripts/generate-icons.mjs",
-    "analyse": "vite build --mode analyse"
+    "analyse": "vite build --mode analyse",
+    "fixtures": "node scripts/make-barcode-video.mjs",
+    "test:e2e": "npm run fixtures && playwright test"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

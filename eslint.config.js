@@ -47,6 +47,20 @@ export default tseslint.config(
     },
   },
 
+  // Playwright specs drive a real browser, so they need DOM types as well as
+  // Node ones. Their own project supplies both.
+  {
+    files: ['e2e/**/*.ts'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: {
+        project: ['./tsconfig.e2e.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+
   // Build tooling runs in Node and is not type-checked by tsconfig.app.
   {
     files: ['*.config.{js,ts}', 'scripts/**/*.mjs'],
