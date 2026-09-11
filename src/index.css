@@ -1,46 +1,50 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Self-hosted so first paint does not wait on fonts.googleapis.com and then a
    second hop to fonts.gstatic.com. Only the subsets we can actually render are
    declared; unicode-range keeps latin-ext off the wire until a product name
    needs it. Both files are variable, so one request covers every weight. */
 @font-face {
-  font-family: "Geist Variable";
+  font-family: 'Geist Variable';
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2") format("woff2-variations");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
-    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  src: url('@fontsource-variable/geist/files/geist-latin-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @font-face {
-  font-family: "Geist Variable";
+  font-family: 'Geist Variable';
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url("@fontsource-variable/geist/files/geist-latin-ext-wght-normal.woff2")
-    format("woff2-variations");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
-    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
-    U+2C60-2C7F, U+A720-A7FF;
+  src: url('@fontsource-variable/geist/files/geist-latin-ext-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
 }
 
 /* Barcodes are digits, so the mono face only ever needs latin. */
 @font-face {
-  font-family: "Geist Mono Variable";
+  font-family: 'Geist Mono Variable';
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url("@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2")
-    format("woff2-variations");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
-    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  src: url('@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @theme {
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, "Roboto Mono", monospace;
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, 'Roboto Mono', monospace;
 
   /* Light palette. The dark values live in the media query below, which
      overrides the same custom properties so every utility follows along. */
@@ -57,6 +61,12 @@
   --color-accent: #c9f24e;
   --color-accent-ink: #171a0c;
   --color-lens: #0d0d0f;
+  /* Offline notice. Text clears 4.5:1 on its own background, and the border
+     clears 3:1 against both the page and the fill, so the boundary itself
+     satisfies 1.4.11 rather than relying on the fill being noticeable. */
+  --color-notice: #fbe8bd;
+  --color-notice-ink: #4a3400;
+  --color-notice-line: #9c7416;
 
   --radius-card: 1.25rem;
 }
@@ -71,12 +81,18 @@
     --color-line: #26262b;
     --color-field: #68686f;
     --color-lens: #000000;
+    --color-notice: #2e2510;
+    --color-notice-ink: #f6e3b0;
+    --color-notice-line: #8a7029;
   }
 }
 
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    /* Without this the UA paints the search field’s clear button and the
+       scrollbar light, over our dark theme. */
+    color-scheme: light dark;
   }
 
   body {
