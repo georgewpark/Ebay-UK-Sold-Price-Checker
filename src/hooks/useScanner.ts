@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getDetector } from '../lib/detector.ts'
+import { createFrameGrabber } from '../lib/frame.ts'
 
 export type ScannerStatus = 'idle' | 'starting' | 'scanning'
 
@@ -13,6 +14,14 @@ const IDLE_NOTICE: Notice = {
   body: 'Start the scanner to look up a barcode.',
 }
 
+const HIDDEN_NOTICE: Notice = {
+  title: 'Camera released',
+  body: 'We switched the camera off when you left the page. Start it again to scan.',
+}
+
+/** Gap between decode attempts. Detection itself is awaited, so this is a floor. */
+const FRAME_INTERVAL = 140
+
 interface TorchConstraint {
   torch: boolean
 }
@@ -21,8 +30,14 @@ export function useScanner(onDetect: (code: string) => void) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const runningRef = useRef(false)
+  const startingRef = useRef(false)
   const onDetectRef = useRef(onDetect)
-  onDetectRef.current = onDetect
+
+  // Mutating a ref during render is not safe under concurrent rendering, and a
+  // scan cannot begin before commit anyway, so keep the sync in an effect.
+  useEffect(() => {
+    onDetectRef.current = onDetect
+  })
 
   const [status, setStatus] = useState<ScannerStatus>('idle')
   const [notice, setNotice] = useState<Notice | null>(IDLE_NOTICE)
@@ -39,6 +54,7 @@ export function useScanner(onDetect: (code: string) => void) {
   const stop = useCallback(
     (message: Notice = IDLE_NOTICE) => {
       runningRef.current = false
+      startingRef.current = false
       releaseCamera()
       setStatus('idle')
       setNotice(message)
@@ -46,8 +62,11 @@ export function useScanner(onDetect: (code: string) => void) {
     [releaseCamera],
   )
 
+  // Guarding on refs rather than `status` keeps this callback stable, so the
+  // whole hook result can stay referentially stable between renders.
   const start = useCallback(async () => {
-    if (runningRef.current || status === 'starting') return
+    if (runningRef.current || startingRef.current) return
+    startingRef.current = true
     setStatus('starting')
     setNotice(null)
 
@@ -64,10 +83,12 @@ export function useScanner(onDetect: (code: string) => void) {
 
     try {
       streamRef.current = await navigator.mediaDevices.getUserMedia({
+        // 720p starts faster than 1080p and, once cropped to the reticle, still
+        // carries far more detail than the decoder needs.
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
         audio: false,
       })
@@ -98,25 +119,31 @@ export function useScanner(onDetect: (code: string) => void) {
     }
 
     runningRef.current = true
+    startingRef.current = false
     setStatus('scanning')
 
+    const grabFrame = createFrameGrabber()
+
     while (runningRef.current) {
-      if (video.readyState >= 2) {
-        try {
-          const hits = await detector.detect(video)
-          const value = hits[0]?.rawValue.trim()
-          if (value) {
-            stop({ title: 'Scanned', body: 'Start the scanner again for the next item.' })
-            onDetectRef.current(value)
-            return
+      if (video.readyState >= 2 && !document.hidden) {
+        const frame = grabFrame(video)
+        if (frame) {
+          try {
+            const hits = await detector.detect(frame)
+            const value = hits[0]?.rawValue.trim()
+            if (value) {
+              stop({ title: 'Scanned', body: 'Start the scanner again for the next item.' })
+              onDetectRef.current(value)
+              return
+            }
+          } catch {
+            /* a dropped frame is not worth surfacing */
           }
-        } catch {
-          /* a dropped frame is not worth surfacing */
         }
       }
-      await new Promise((resolve) => setTimeout(resolve, 140))
+      await new Promise((resolve) => setTimeout(resolve, FRAME_INTERVAL))
     }
-  }, [status, stop])
+  }, [stop])
 
   const toggleTorch = useCallback(async () => {
     const track = streamRef.current?.getVideoTracks()[0]
@@ -131,21 +158,33 @@ export function useScanner(onDetect: (code: string) => void) {
     }
   }, [torchOn])
 
+  // Holding a camera open behind a hidden tab costs battery and keeps the
+  // indicator light on for no reason.
+  useEffect(() => {
+    const release = () => {
+      if (document.hidden && (runningRef.current || startingRef.current)) stop(HIDDEN_NOTICE)
+    }
+    document.addEventListener('visibilitychange', release)
+    return () => document.removeEventListener('visibilitychange', release)
+  }, [stop])
+
   // Never leave the camera running behind us.
   useEffect(() => {
     return () => {
       runningRef.current = false
+      startingRef.current = false
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
   }, [])
 
-  return {
-    videoRef,
-    status,
-    notice,
-    start,
-    stop,
-    torch: { available: torchAvailable, on: torchOn, toggle: toggleTorch },
-  }
+  const torch = useMemo(
+    () => ({ available: torchAvailable, on: torchOn, toggle: toggleTorch }),
+    [torchAvailable, torchOn, toggleTorch],
+  )
+
+  return useMemo(
+    () => ({ videoRef, status, notice, start, stop, torch }),
+    [status, notice, start, stop, torch],
+  )
 }

@@ -1,4 +1,6 @@
-export default function Masthead() {
+import { memo } from 'react'
+
+function Masthead() {
   return (
     <header className="px-1">
       {/* Scales with the viewport, but is free to wrap: pinning it to one line
@@ -14,3 +16,5 @@ export default function Masthead() {
     </header>
   )
 }
+
+export default memo(Masthead)

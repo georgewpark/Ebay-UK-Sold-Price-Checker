@@ -1,3 +1,9 @@
+import wasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url'
+
+/** Hoisted so the reference stays stable: prepareZXingModule caches by shallow
+    equality, and a fresh object each call would re-instantiate the module. */
+const WASM_OVERRIDES = { locateFile: () => wasmUrl }
+
 export const FORMATS = [
   'ean_13',
   'ean_8',
@@ -9,7 +15,7 @@ export const FORMATS = [
 ] as const
 
 export interface Detector {
-  detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>
+  detect(source: ImageBitmapSource): Promise<Array<{ rawValue: string }>>
 }
 
 interface NativeDetectorCtor {
@@ -39,7 +45,11 @@ export async function getDetector(): Promise<Detector> {
     }
   }
 
-  const { BarcodeDetector } = await import('barcode-detector/pure')
+  const { BarcodeDetector, prepareZXingModule } = await import('barcode-detector/pure')
+  // Serve the ~1 MB decoder from our own origin. Left alone, zxing-wasm fetches it
+  // from jsDelivr at scan time, which costs a fresh DNS lookup and TLS handshake on
+  // the one path that is already the slow one.
+  prepareZXingModule({ overrides: WASM_OVERRIDES })
   cached = new BarcodeDetector({ formats: [...FORMATS] }) as unknown as Detector
   return cached
 }

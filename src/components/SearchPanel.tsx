@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { RefObject } from 'react'
 import type { ScanStatus } from '../lib/types.ts'
 
@@ -11,7 +12,7 @@ interface Props {
   onLive: () => void
 }
 
-export default function SearchPanel({
+function SearchPanel({
   code,
   status,
   term,
@@ -87,3 +88,5 @@ export default function SearchPanel({
     </section>
   )
 }
+
+export default memo(SearchPanel)

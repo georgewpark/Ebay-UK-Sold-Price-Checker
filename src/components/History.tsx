@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { ScanEntry } from '../lib/types.ts'
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 
 const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' })
 
-export default function History({ entries, onRecall, onClear }: Props) {
+function History({ entries, onRecall, onClear }: Props) {
   return (
     <section className="rounded-card border border-line bg-surface px-4 py-3 shadow-xs">
       <div className="flex items-baseline justify-between gap-3">
@@ -36,23 +37,7 @@ export default function History({ entries, onRecall, onClear }: Props) {
         <ul className="mt-1 divide-y divide-line">
           {entries.map((entry) => (
             <li key={`${entry.code}-${entry.at}`}>
-              <button
-                type="button"
-                onClick={() => onRecall(entry)}
-                className="flex w-full items-center justify-between gap-3 py-3 text-left"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-[15px] text-ink">{entry.label}</span>
-                  {entry.code !== entry.label && (
-                    <span className="block font-mono text-[11px] tracking-wider text-muted tabular">
-                      {entry.code}
-                    </span>
-                  )}
-                </span>
-                <span className="shrink-0 text-[13px] text-muted tabular">
-                  {time.format(entry.at)}
-                </span>
-              </button>
+              <Row entry={entry} onRecall={onRecall} />
             </li>
           ))}
         </ul>
@@ -60,3 +45,32 @@ export default function History({ entries, onRecall, onClear }: Props) {
     </section>
   )
 }
+
+/** Memoised per row so recording a scan only re-renders the row that changed. */
+const Row = memo(function Row({
+  entry,
+  onRecall,
+}: {
+  entry: ScanEntry
+  onRecall: (entry: ScanEntry) => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onRecall(entry)}
+      className="flex w-full items-center justify-between gap-3 py-3 text-left"
+    >
+      <span className="min-w-0">
+        <span className="block truncate text-[15px] text-ink">{entry.label}</span>
+        {entry.code !== entry.label && (
+          <span className="block font-mono text-[11px] tracking-wider text-muted tabular">
+            {entry.code}
+          </span>
+        )}
+      </span>
+      <span className="shrink-0 text-[13px] text-muted tabular">{time.format(entry.at)}</span>
+    </button>
+  )
+})
+
+export default memo(History)

@@ -1,5 +1,7 @@
+import { memo } from 'react'
 import type { RefObject } from 'react'
 import type { Notice, ScannerStatus } from '../hooks/useScanner.ts'
+import { RETICLE } from '../lib/frame.ts'
 
 interface Props {
   videoRef: RefObject<HTMLVideoElement | null>
@@ -10,14 +12,10 @@ interface Props {
   onToggleScan: () => void
 }
 
-export default function Viewfinder({
-  videoRef,
-  status,
-  notice,
-  flashKey,
-  torch,
-  onToggleScan,
-}: Props) {
+/** Drawn from the same numbers the decoder crops to, so the box tells the truth. */
+const RETICLE_INSET = `${RETICLE.y * 100}% ${RETICLE.x * 100}%`
+
+function Viewfinder({ videoRef, status, notice, flashKey, torch, onToggleScan }: Props) {
   const scanning = status === 'scanning'
 
   return (
@@ -35,7 +33,11 @@ export default function Viewfinder({
       />
 
       {scanning && (
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-[12%] inset-y-[22%]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          style={{ inset: RETICLE_INSET }}
+        >
           <Corner className="left-0 top-0 border-l-3 border-t-3 rounded-tl-md" />
           <Corner className="right-0 top-0 border-r-3 border-t-3 rounded-tr-md" />
           <Corner className="bottom-0 left-0 border-b-3 border-l-3 rounded-bl-md" />
@@ -93,3 +95,5 @@ export default function Viewfinder({
 function Corner({ className }: { className: string }) {
   return <div className={`absolute h-7 w-7 border-accent ${className}`} />
 }
+
+export default memo(Viewfinder)

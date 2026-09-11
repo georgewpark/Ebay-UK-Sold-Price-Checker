@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Masthead from './components/Masthead.tsx'
 import Viewfinder from './components/Viewfinder.tsx'
 import SearchPanel from './components/SearchPanel.tsx'
 import History from './components/History.tsx'
 import { useHistory } from './hooks/useHistory.ts'
 import { useScanner } from './hooks/useScanner.ts'
+import { getDetector } from './lib/detector.ts'
 import { ebayUrl, openTab } from './lib/ebay.ts'
 import { lookupName } from './lib/lookup.ts'
 import type { ScanEntry, ScanStatus } from './lib/types.ts'
@@ -22,13 +23,32 @@ export default function App() {
   const [flashKey, setFlashKey] = useState(0)
 
   const { entries, record, clear } = useHistory()
-  const lookupId = useRef(0)
+  const lookup = useRef<AbortController | null>(null)
   const termRef = useRef<HTMLInputElement>(null)
+
+  // Warm the barcode reader while the user is still reading the page. On the
+  // fallback path this fetches the 43 kB module but not the 1 MB binary, which
+  // only loads once a scan actually starts.
+  useEffect(() => {
+    const warm = () => void getDetector().catch(() => {})
+    if (typeof window.requestIdleCallback === 'function') {
+      const handle = window.requestIdleCallback(warm)
+      return () => window.cancelIdleCallback?.(handle)
+    }
+    const timer = setTimeout(warm, 1200)
+    return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => () => lookup.current?.abort(), [])
 
   const handleDetect = useCallback(
     (scanned: string) => {
       setFlashKey((key) => key + 1)
       navigator.vibrate?.(45)
+
+      lookup.current?.abort()
+      const attempt = new AbortController()
+      lookup.current = attempt
 
       setCode(scanned)
       setTerm(scanned)
@@ -37,9 +57,8 @@ export default function App() {
         spoken: `Barcode ${spell(scanned)} scanned. Looking up a product name.`,
       })
 
-      const id = ++lookupId.current
-      void lookupName(scanned).then((name) => {
-        if (id !== lookupId.current) return
+      void lookupName(scanned, attempt.signal).then((name) => {
+        if (attempt.signal.aborted) return
         if (name) {
           setTerm(name)
           setStatus({
@@ -71,7 +90,14 @@ export default function App() {
     [code, record, term],
   )
 
+  const onSold = useCallback(() => search(true), [search])
+  const onLive = useCallback(() => search(false), [search])
+
   const recall = useCallback((entry: ScanEntry) => {
+    // A lookup still in flight from the last scan would otherwise land on top
+    // of the entry the user just picked.
+    lookup.current?.abort()
+
     setCode(entry.code)
     setTerm(entry.label)
     setStatus({
@@ -112,8 +138,8 @@ export default function App() {
           term={term}
           termRef={termRef}
           onTermChange={setTerm}
-          onSold={() => search(true)}
-          onLive={() => search(false)}
+          onSold={onSold}
+          onLive={onLive}
         />
 
         <History entries={entries} onRecall={recall} onClear={clear} />
