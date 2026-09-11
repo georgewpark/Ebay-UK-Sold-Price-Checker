@@ -85,11 +85,20 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,svg,png,webmanifest}'],
         /**
-         * Deliberately not the 1 MB decoder. Only Safari and Firefox ever ask
-         * for it, so precaching would charge every Chrome user for a file they
-         * will never open. The runtime rule below catches it on first use.
+         * Everything here is fetched only on a path most users never take, so
+         * precaching it would charge everyone for a file they will never open.
+         * The runtime rules below catch each one on first use instead.
+         *
+         * - The 1 MB decoder binary, and the ~43 kB of glue that loads it. Only
+         *   Safari and Firefox reach either; Chrome has BarcodeDetector built in.
+         * - The latin-ext font. `unicode-range` already keeps it off the wire
+         *   until a product name needs an accented character, and precaching
+         *   went behind its back and fetched it for everyone.
+         *
+         * `check-size.mjs` matches ponyfill-*.js by the same name, so a rename
+         * upstream fails the build rather than quietly restoring the download.
          */
-        globIgnores: ['**/*.wasm'],
+        globIgnores: ['**/*.wasm', '**/ponyfill-*.js', '**/*-latin-ext-*.woff2'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         runtimeCaching: [
@@ -100,6 +109,28 @@ export default defineConfig(({ mode }) => ({
               cacheName: 'decoder-wasm',
               // Content-hashed, so a hit is always the right binary.
               expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 180 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // The glue that loads the binary. Content-hashed like the rest of
+            // the bundle, so a cache hit is always the matching build.
+            urlPattern: ({ url }) => /\/ponyfill-[^/]+\.js$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'decoder-ponyfill',
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 180 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Held back from the precache, so catch it the first time a product
+            // name actually needs an accented character.
+            urlPattern: ({ url }) => /-latin-ext-[^/]+\.woff2$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'font-latin-ext',
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
