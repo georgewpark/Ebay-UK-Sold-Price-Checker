@@ -48,7 +48,15 @@ Prices live on eBay, so the app cannot show you a price without a connection. It
 - **Offline.** A banner says so. Scanning still works, recent scans still work, and a product you have scanned before still resolves to its name from the cache. The two search buttons stay in the tab order but refuse to fire, and explain why.
 - **Back online.** The banner clears itself.
 
-The service worker precaches the app shell, so a repeat visit starts instantly and the installed app opens without a round trip. It deliberately does **not** precache the 1 MB WASM decoder: only Safari and Firefox ever need it, so it is cached the first time it is actually fetched.
+The service worker precaches the app shell, so a repeat visit starts instantly and the installed app opens without a round trip. It deliberately holds three things back, because each is only fetched on a path most people never take, and precaching them would charge everyone for a file they will never open:
+
+| Held back                | Who actually fetches it                             |
+| ------------------------ | --------------------------------------------------- |
+| The 1 MB WASM decoder    | Safari and Firefox                                  |
+| The ~43 kB ponyfill glue | Safari and Firefox                                  |
+| The latin-ext font       | Anyone whose product name has an accented character |
+
+Each is caught by a runtime rule the first time it is genuinely fetched, so it still works offline from the second time onwards.
 
 ## Testing on a phone
 
@@ -97,7 +105,7 @@ export default defineConfig({
 
 ## How it works
 
-1. **Detect.** The app uses the browser's own `BarcodeDetector` where it exists. Where it does not, it dynamically imports the `barcode-detector` WASM ponyfill, which only downloads on the browsers that need it. Either way the decoder runs in a worker: the main thread only crops a frame and posts it across, so the scan-line animation and any scrolling stay smooth. The loop waits on `requestVideoFrameCallback`, so it never decodes the same frame twice.
+1. **Detect.** The app uses the browser's own `BarcodeDetector` where it exists. Where it does not, it dynamically imports the `barcode-detector` WASM ponyfill, which only downloads on the browsers that need it. Either way the decoder runs in a worker, and the page never touches the pixels: `createImageBitmap` crops and downscales the frame, and the handle transfers to the worker without a copy. Browsers without it fall back to a canvas readback. The loop waits on `requestVideoFrameCallback`, so it never decodes the same frame twice, and it decodes each frame while waiting for the next rather than before, so the slow WASM path is not also the one sampling the camera least often.
 2. **Crop.** Only the reticle is decoded, downscaled to 640px wide. The crop is measured against the part of the frame the viewfinder actually shows, not the raw camera frame, so the box you line the barcode up against is exactly the box being read.
 3. **Name.** The barcode goes to Open Food Facts, then to UPCitemdb if that misses. Neither needs an API key. A miss, a rate limit and an unreachable database say different things, because they mean different things. Results are cached in memory and by the service worker.
 4. **Search.** Sold prices open `https://www.ebay.co.uk/sch/i.html` with `LH_Sold=1` and `LH_Complete=1`. eBay requires a signed-in session to show sold listings, so sign in once on the device and every lookup after that goes straight through.
@@ -109,7 +117,10 @@ The target is WCAG 2.2 AA, and it is treated as a requirement rather than a nice
 - Every colour pair in `src/index.css` is chosen against a measured contrast ratio, including the boundary colours that 1.4.11 covers, not just text.
 - Scanner state is announced: routine updates politely, errors assertively.
 - The torch and keep-scanning controls carry a fixed label plus `aria-pressed`, so a screen reader never has to guess which half of "Torch on, pressed" is the state. Their on state also carries a mark, so colour is not doing the work alone.
-- The search buttons say they open a new tab, and when they will not fire they stay focusable and explain why via `aria-describedby`.
+- The search buttons say they open a new tab, and when they will not fire they stay focusable and explain why via `aria-describedby`. The Start button works the same way: `aria-disabled` rather than `disabled`, because browsers blur an element the moment it becomes disabled, which drops focus to `<body>` just as the permission prompt opens.
+- Nothing that removes itself leaves focus stranded. Clearing the history moves focus to its heading, and removing one row moves it to the row that took its place, along with a spoken confirmation that something went.
+- Live regions stay mounted and empty rather than appearing with their text. A region that arrives at the same moment as its content, or that was sitting at `display: none` until then, is not reliably announced.
+- Anything the eye gets, the ear gets. No information is left in a `title` attribute, which never appears on touch and cannot be reached by keyboard.
 - `eslint-plugin-jsx-a11y` runs on every commit, which catches the static mistakes. It does not catch the rest, so test with a screen reader before shipping interface changes.
 
 ## Browser support
