@@ -1,4 +1,4 @@
-import { memo, useId } from 'react'
+import { memo, useId, useLayoutEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Notice, ScannerStatus } from '../hooks/useScanner.ts'
 import { RETICLE } from '../lib/frame.ts'
@@ -33,6 +33,29 @@ function Viewfinder({
   const scanning = status === 'scanning'
   const alert = notice?.tone === 'error' ? notice : null
   const update = notice?.tone === 'error' ? null : notice
+
+  const scanRef = useRef<HTMLButtonElement>(null)
+  const hadTorch = useRef(torch.available)
+
+  /**
+   * The torch pill only exists while the camera does, so every stop unmounts
+   * it, including the stop a successful scan triggers. Browsers blur an element
+   * the moment it leaves the document, which leaves a keyboard or screen reader
+   * user at <body> with the whole page to tab through again, mid-task. Hand
+   * focus to the scan button instead, the way History rescues it from a removed
+   * row, and do it before the browser paints.
+   */
+  useLayoutEffect(() => {
+    const lost = hadTorch.current && !torch.available
+    hadTorch.current = torch.available
+    if (!lost) return
+
+    // Only claim focus the browser actually dropped. Anywhere else and the user
+    // has moved on, and dragging them back to the scanner would be worse than
+    // the problem we are fixing.
+    const active = document.activeElement
+    if (!active || active === document.body) scanRef.current?.focus({ preventScroll: true })
+  }, [torch.available])
 
   return (
     <section
@@ -87,6 +110,7 @@ function Viewfinder({
             drop focus to <body> just as the permission prompt opened. Starting
             is a no-op instead, the way SearchPanel handles its blocked buttons. */}
         <button
+          ref={scanRef}
           type="button"
           onClick={() => {
             if (status !== 'starting') onToggleScan()
