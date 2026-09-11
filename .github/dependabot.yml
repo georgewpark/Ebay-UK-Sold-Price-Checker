@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One PR per concern, so a routine patch bump does not arrive as fifteen.
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      # These two must move together. The build guard fails if they do not, but
+      # grouping them means Dependabot proposes a change that can actually pass.
+      barcode-decoder:
+        patterns: ['barcode-detector', 'zxing-wasm']
+      tooling:
+        patterns:
+          - 'eslint*'
+          - '@eslint/*'
+          - 'typescript-eslint'
+          - 'prettier'
+          - 'vitest'
+          - '@vitest/*'
+          - '@testing-library/*'
+      build:
+        patterns: ['vite', '@vitejs/*', 'vite-plugin-*', 'tailwindcss', '@tailwindcss/*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
