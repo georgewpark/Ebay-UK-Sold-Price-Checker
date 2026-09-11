@@ -1,0 +1,28 @@
+# Netlify and Cloudflare Pages read this file and turn it into response headers.
+# Other hosts need the same rules expressed their own way: see "Deploying" in
+# the README. It is copied to dist/ verbatim, so keep it in sync with the app.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://world.openfoodfacts.org https://api.upcitemdb.com; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(), interest-cohort=()
+
+# Hashed filenames, so the content behind a URL never changes.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The entry point and the service worker are how an update reaches anyone.
+# Caching either is how an update fails to.
+/index.html
+  Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+
+/registerSW.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache
