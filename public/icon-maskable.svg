@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="eBay UK Sold Price Checker">
+  <rect width="64" height="64" fill="#111113"/>
+  <g fill="#c9f24e">
+    <rect x="19" y="23" width="3.5" height="18" rx="1.25"/>
+    <rect x="26" y="23" width="1.75" height="18" rx="0.875"/>
+    <rect x="31" y="23" width="4.25" height="18" rx="1.25"/>
+    <rect x="39" y="23" width="1.75" height="18" rx="0.875"/>
+    <rect x="44" y="23" width="2.5" height="18" rx="1.25"/>
+  </g>
+</svg>

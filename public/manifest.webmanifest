@@ -1,0 +1,15 @@
+{
+  "name": "eBay UK - Sold Price Checker",
+  "short_name": "Sold Checker",
+  "description": "Scan a barcode and see what it recently sold for on eBay UK.",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f7f5",
+  "theme_color": "#f7f7f5",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

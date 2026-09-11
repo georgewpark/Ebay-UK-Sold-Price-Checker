@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, "Roboto Mono", monospace;
+
+  /* Light palette. The dark values live in the media query below, which
+     overrides the same custom properties so every utility follows along. */
+  --color-paper: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-sunken: #f1f1ee;
+  --color-ink: #111113;
+  --color-muted: #70706d;
+  --color-line: #e4e4e0;
+  --color-accent: #c9f24e;
+  --color-accent-ink: #171a0c;
+  --color-lens: #0d0d0f;
+
+  --radius-card: 1.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #0b0b0d;
+    --color-surface: #141417;
+    --color-sunken: #1b1b1f;
+    --color-ink: #f3f3f1;
+    --color-muted: #9a9a96;
+    --color-line: #26262b;
+    --color-lens: #000000;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ink;
+  }
+
+  select,
+  input,
+  button {
+    font: inherit;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes flash {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
