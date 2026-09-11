@@ -17,18 +17,22 @@ export default function History({ entries, onRecall, onClear }: Props) {
           <button
             type="button"
             onClick={onClear}
-            className="text-[13px] text-muted underline underline-offset-2"
+            className="-my-1.5 -mr-2 px-2 py-1.5 text-[13px] text-muted underline underline-offset-2"
           >
             Clear
           </button>
         )}
       </div>
 
-      {entries.length === 0 ? (
-        <p className="py-2 text-[13px] text-muted">
-          Nothing scanned yet. Your last 40 lookups stay on this device.
-        </p>
-      ) : (
+      <div role="status" aria-live="polite">
+        {entries.length === 0 && (
+          <p className="py-2 text-[13px] text-muted">
+            Nothing scanned yet. Your last 40 lookups stay on this device.
+          </p>
+        )}
+      </div>
+
+      {entries.length > 0 && (
         <ul className="mt-1 divide-y divide-line">
           {entries.map((entry) => (
             <li key={`${entry.code}-${entry.at}`}>

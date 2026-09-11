@@ -20,8 +20,12 @@ export default function SearchPanel({
   return (
     <section className="rounded-card border border-line bg-surface p-4 shadow-xs">
       <div className="flex items-baseline justify-between gap-3">
+        {/* The dashes are a visual stand-in for an empty slot, not content.
+            How a screen reader treats them depends on the user's punctuation
+            verbosity, so hide them rather than leave it to chance. */}
         <p
-          className={`font-mono text-xl tracking-[0.12em] tabular ${code ? 'text-ink' : 'text-line'}`}
+          aria-hidden={!code}
+          className={`font-mono text-xl tracking-[0.12em] tabular ${code ? 'text-ink' : 'text-muted'}`}
         >
           {code || '–––––––'}
         </p>
@@ -31,7 +35,7 @@ export default function SearchPanel({
           </span>
         )}
       </div>
-      <p className="mt-1 min-h-4 text-[13px] text-muted">{provenance}</p>
+      <p role="status" className="mt-1 min-h-4 text-[13px] text-muted">{provenance}</p>
 
       <label className="mt-4 block">
         <span className="mb-1.5 block text-[13px] font-medium text-muted">Search eBay UK for</span>
@@ -45,7 +49,7 @@ export default function SearchPanel({
           placeholder="Scan a barcode, or type a product name"
           autoComplete="off"
           enterKeyHint="search"
-          className="w-full rounded-xl border border-line bg-sunken px-3.5 py-3 text-[15px] text-ink placeholder:text-muted/70"
+          className="w-full rounded-xl border border-field bg-sunken px-3.5 py-3 text-[15px] text-ink placeholder:text-muted"
         />
       </label>
 
@@ -62,7 +66,7 @@ export default function SearchPanel({
           type="button"
           onClick={onLive}
           disabled={!ready}
-          className="rounded-xl border border-line bg-surface px-4 py-3 text-sm font-semibold text-ink transition active:scale-[0.99] disabled:text-muted/60"
+          className="rounded-xl border border-field bg-surface px-4 py-3 text-sm font-semibold text-ink transition active:scale-[0.99] disabled:text-muted/60"
         >
           Live listings
         </button>

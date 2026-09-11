@@ -74,25 +74,27 @@ export default function App() {
     <div className="mx-auto flex min-h-dvh w-full max-w-120 flex-col gap-3 px-4 pb-10 pt-5">
       <Masthead />
 
-      <Viewfinder
-        videoRef={scanner.videoRef}
-        status={scanner.status}
-        notice={scanner.notice}
-        flashKey={flashKey}
-        torch={scanner.torch}
-        onToggleScan={toggleScan}
-      />
+      <main className="flex flex-col gap-3">
+        <Viewfinder
+          videoRef={scanner.videoRef}
+          status={scanner.status}
+          notice={scanner.notice}
+          flashKey={flashKey}
+          torch={scanner.torch}
+          onToggleScan={toggleScan}
+        />
 
-      <SearchPanel
-        code={code}
-        provenance={provenance}
-        term={term}
-        onTermChange={setTerm}
-        onSold={() => search(true)}
-        onLive={() => search(false)}
-      />
+        <SearchPanel
+          code={code}
+          provenance={provenance}
+          term={term}
+          onTermChange={setTerm}
+          onSold={() => search(true)}
+          onLive={() => search(false)}
+        />
 
-      <History entries={entries} onRecall={recall} onClear={clear} />
+        <History entries={entries} onRecall={recall} onClear={clear} />
+      </main>
 
       <p className="px-1 pt-1 text-[12px] leading-relaxed text-muted">
         Searches run on eBay UK and open in a new tab. eBay asks you to sign in before it shows sold

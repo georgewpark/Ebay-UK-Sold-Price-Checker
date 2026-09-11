@@ -49,19 +49,21 @@ export default function Viewfinder({
         />
       )}
 
-      {notice && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-lens/70 px-8 text-center backdrop-blur-[1px]">
-          <p className="text-base font-semibold text-white">{notice.title}</p>
-          <p className="max-w-xs text-[13px] leading-relaxed text-white/70">{notice.body}</p>
-        </div>
-      )}
+      <div role="status" aria-live="polite">
+        {notice && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-lens/70 px-8 text-center backdrop-blur-[1px]">
+            <p className="text-base font-semibold text-white">{notice.title}</p>
+            <p className="max-w-xs text-[13px] leading-relaxed text-white/70">{notice.body}</p>
+          </div>
+        )}
+      </div>
 
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 p-4">
         <button
           type="button"
           onClick={onToggleScan}
           disabled={status === 'starting'}
-          className="rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-[#111113] shadow-lg backdrop-blur transition active:scale-[0.98] disabled:opacity-60"
+          className="rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-[#111113] shadow-lg backdrop-blur transition focus-visible:outline-[#111113] focus-visible:outline-offset-0 active:scale-[0.98] disabled:opacity-60"
         >
           {status === 'starting' ? 'Starting' : scanning ? 'Stop' : 'Start scanning'}
         </button>
@@ -71,8 +73,10 @@ export default function Viewfinder({
             type="button"
             onClick={torch.toggle}
             aria-pressed={torch.on}
-            className={`rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg backdrop-blur transition ${
-              torch.on ? 'bg-accent text-accent-ink' : 'bg-black/50 text-white ring-1 ring-white/30'
+            className={`rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg backdrop-blur transition focus-visible:outline-offset-0 ${
+              torch.on
+                ? 'bg-accent text-accent-ink focus-visible:outline-[#171a0c]'
+                : 'bg-[#1b1b1f] text-white ring-1 ring-white/70 focus-visible:outline-white'
             }`}
           >
             Torch

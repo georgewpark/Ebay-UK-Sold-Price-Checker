@@ -10,8 +10,12 @@
   --color-surface: #ffffff;
   --color-sunken: #f1f1ee;
   --color-ink: #111113;
-  --color-muted: #70706d;
+  --color-muted: #686865;
   --color-line: #e4e4e0;
+  /* Hairlines between cards are decorative, so --color-line stays light. A form
+     control's boundary is not: WCAG 1.4.11 wants 3:1 against what sits either
+     side of it, so inputs use --color-field instead. */
+  --color-field: #8a8a87;
   --color-accent: #c9f24e;
   --color-accent-ink: #171a0c;
   --color-lens: #0d0d0f;
@@ -27,6 +31,7 @@
     --color-ink: #f3f3f1;
     --color-muted: #9a9a96;
     --color-line: #26262b;
+    --color-field: #68686f;
     --color-lens: #000000;
   }
 }
