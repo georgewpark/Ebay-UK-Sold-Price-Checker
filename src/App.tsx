@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Masthead from './components/Masthead.tsx'
+import OfflineBanner from './components/OfflineBanner.tsx'
 import Viewfinder from './components/Viewfinder.tsx'
 import SearchPanel from './components/SearchPanel.tsx'
 import History from './components/History.tsx'
 import { useHistory } from './hooks/useHistory.ts'
+import { useOnline } from './hooks/useOnline.ts'
 import { useScanner } from './hooks/useScanner.ts'
 import { warmDecoder } from './lib/decoder.ts'
 import { ebayUrl, openTab } from './lib/ebay.ts'
@@ -17,6 +19,7 @@ export default function App() {
   const [status, setStatus] = useState<ScanStatus>(NO_STATUS)
   const [flashKey, setFlashKey] = useState(0)
 
+  const online = useOnline()
   const { entries, record, clear } = useHistory()
   const lookup = useRef<AbortController | null>(null)
   const termRef = useRef<HTMLInputElement>(null)
@@ -63,11 +66,11 @@ export default function App() {
   const search = useCallback(
     (sold: boolean) => {
       const query = term.trim()
-      if (!query) return
-      if (sold) record(code || query, query)
+      if (!query || !online) return
+      record(code || query, query)
       openTab(ebayUrl(query, sold))
     },
-    [code, record, term],
+    [code, online, record, term],
   )
 
   const onSold = useCallback(() => search(true), [search])
@@ -98,6 +101,7 @@ export default function App() {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-120 flex-col gap-3 px-4 pb-10 pt-5">
       <Masthead />
+      <OfflineBanner online={online} />
 
       <main className="flex flex-col gap-3">
         <Viewfinder
@@ -115,6 +119,7 @@ export default function App() {
           status={status}
           term={term}
           termRef={termRef}
+          online={online}
           onTermChange={setTerm}
           onSold={onSold}
           onLive={onLive}

@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useId } from 'react'
 import type { RefObject } from 'react'
 import type { ScanStatus } from '../lib/types.ts'
 
@@ -7,6 +7,7 @@ interface Props {
   status: ScanStatus
   term: string
   termRef: RefObject<HTMLInputElement | null>
+  online: boolean
   onTermChange: (term: string) => void
   onSold: () => void
   onLive: () => void
@@ -17,11 +18,21 @@ function SearchPanel({
   status,
   term,
   termRef,
+  online,
   onTermChange,
   onSold,
   onLive,
 }: Props) {
-  const ready = term.trim().length > 0
+  const noteId = useId()
+  const empty = term.trim().length === 0
+  const blocked = empty || !online
+
+  // A disabled button leaves the tab order, so a keyboard user arrives at the
+  // buttons, finds nothing, and is told nothing. aria-disabled keeps them
+  // reachable and lets aria-describedby explain why they will not fire.
+  const guard = (run: () => void) => () => {
+    if (!blocked) run()
+  }
 
   return (
     <section
@@ -58,7 +69,7 @@ function SearchPanel({
           value={term}
           onChange={(event) => onTermChange(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && ready) onSold()
+            if (event.key === 'Enter' && !blocked) onSold()
           }}
           placeholder="Scan a barcode, or type a product name"
           autoComplete="off"
@@ -67,20 +78,34 @@ function SearchPanel({
         />
       </label>
 
+      {blocked && (
+        <p id={noteId} className="mt-2 text-[13px] text-muted">
+          {online
+            ? 'Scan a barcode or type a product name to search.'
+            : 'No connection, so eBay cannot open. Reconnect and try again.'}
+        </p>
+      )}
+
       <div className="mt-3 grid gap-2">
         <button
           type="button"
-          onClick={onSold}
-          disabled={!ready}
-          className="rounded-xl bg-accent px-4 py-4 text-base font-semibold text-accent-ink transition active:scale-[0.99] disabled:bg-sunken disabled:text-muted"
+          onClick={guard(onSold)}
+          aria-disabled={blocked}
+          aria-describedby={blocked ? noteId : undefined}
+          className={`rounded-xl px-4 py-4 text-base font-semibold transition active:scale-[0.99] ${
+            blocked ? 'bg-sunken text-muted' : 'bg-accent text-accent-ink'
+          }`}
         >
           See sold prices
         </button>
         <button
           type="button"
-          onClick={onLive}
-          disabled={!ready}
-          className="rounded-xl border border-field bg-surface px-4 py-3 text-sm font-semibold text-ink transition active:scale-[0.99] disabled:text-muted"
+          onClick={guard(onLive)}
+          aria-disabled={blocked}
+          aria-describedby={blocked ? noteId : undefined}
+          className={`rounded-xl border border-field bg-surface px-4 py-3 text-sm font-semibold transition active:scale-[0.99] ${
+            blocked ? 'text-muted' : 'text-ink'
+          }`}
         >
           Live listings
         </button>
