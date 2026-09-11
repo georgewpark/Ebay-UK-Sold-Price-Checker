@@ -73,31 +73,69 @@ export function scanSize(region: Size): Size {
   }
 }
 
+/**
+ * What we hand the decoder. Both detectors accept either: the platform's own
+ * BarcodeDetector takes any ImageBitmapSource, and the ZXing ponyfill reads an
+ * ImageBitmap back through an OffscreenCanvas.
+ */
+export type Frame = ImageData | ImageBitmap
+
+/** An ImageBitmap holds its pixels until it is closed. ImageData is just a buffer. */
+export function closeFrame(frame: Frame | null | undefined): void {
+  if (frame && !(frame instanceof ImageData)) frame.close()
+}
+
 export interface FrameGrabber {
-  grab(video: HTMLVideoElement): ImageData | null
+  grab(video: HTMLVideoElement): Promise<Frame | null>
+  /** Abandon the ImageBitmap path for the rest of this session. */
+  downgrade(): void
   release(): void
 }
 
 /**
- * Builds a reusable cropper. The canvas is allocated once per scanning session
- * and resized only if the camera changes resolution mid-stream.
+ * Builds a reusable cropper.
  *
- * We hand back ImageData rather than the canvas itself because the decoder now
- * runs in a worker. ImageData is what ZXing consumes natively, so there is no
- * conversion at the far end, and its buffer transfers without a copy.
+ * The fast path is createImageBitmap, which crops and downscales without the
+ * page ever touching the pixels, and hands back a handle that transfers to the
+ * worker with no copy at all. The fallback draws to a canvas and reads the
+ * pixels back, which is a synchronous ~1 MB main-thread readback per frame,
+ * landing in the middle of the scan-line animation and any scroll in progress.
+ *
+ * The canvas is allocated once per scanning session and resized only if the
+ * camera changes resolution mid-stream.
  */
 export function createFrameGrabber(): FrameGrabber {
   let canvas: HTMLCanvasElement | null = null
   let context: CanvasRenderingContext2D | null = null
 
+  // The ponyfill needs an OffscreenCanvas to read an ImageBitmap back, so
+  // require one here rather than discover it a frame at a time.
+  let bitmaps = typeof createImageBitmap === 'function' && typeof OffscreenCanvas === 'function'
+
   return {
-    grab(video) {
+    async grab(video) {
       const frame = { width: video.videoWidth, height: video.videoHeight }
       const box = { width: video.clientWidth, height: video.clientHeight }
       const region = scanRegion(frame, box)
       if (!region) return null
 
       const size = scanSize(region)
+
+      if (bitmaps) {
+        try {
+          return await createImageBitmap(video, region.x, region.y, region.width, region.height, {
+            resizeWidth: size.width,
+            resizeHeight: size.height,
+            // The downscale here is mild, but it is a barcode: a resize that
+            // drops a thin bar costs a read. Worth more than "as fast as
+            // possible", and nowhere near the cost of the readback it replaces.
+            resizeQuality: 'medium',
+          })
+        } catch {
+          // Not worth paying for a failed attempt every frame.
+          bitmaps = false
+        }
+      }
 
       if (!canvas) {
         canvas = document.createElement('canvas')
@@ -122,6 +160,10 @@ export function createFrameGrabber(): FrameGrabber {
         size.height,
       )
       return context.getImageData(0, 0, size.width, size.height)
+    },
+
+    downgrade() {
+      bitmaps = false
     },
 
     release() {

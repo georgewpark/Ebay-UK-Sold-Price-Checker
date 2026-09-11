@@ -1,9 +1,22 @@
 import { getDetector, WASM_URL } from './detector.ts'
+import { closeFrame } from './frame.ts'
+import type { Frame } from './frame.ts'
 import type { DecodeResponse } from './decoder.worker.ts'
 
+export interface DecodeOutcome {
+  /** The barcode, or null when the frame held none. */
+  value: string | null
+  /** The decoder threw, rather than simply not finding a barcode. */
+  failed: boolean
+}
+
+/** A frame we never attempted, or one that simply held no barcode. */
+export const NO_BARCODE: DecodeOutcome = { value: null, failed: false }
+const BROKE: DecodeOutcome = { value: null, failed: true }
+
 export interface Decoder {
-  /** Resolves to the barcode, or null. Never rejects: a bad frame is just a miss. */
-  decode(frame: ImageData): Promise<string | null>
+  /** Never rejects: a bad frame is reported through `failed`, not thrown. */
+  decode(frame: Frame): Promise<DecodeOutcome>
   /** False on the WASM path, which is worth prefetching and worth caching. */
   native: boolean
 }
@@ -58,7 +71,7 @@ function openWorker(): Promise<Decoder> {
       return
     }
 
-    const waiting = new Map<number, (value: string | null) => void>()
+    const waiting = new Map<number, (outcome: DecodeOutcome) => void>()
     let nextId = 1
     let settled = false
 
@@ -69,19 +82,20 @@ function openWorker(): Promise<Decoder> {
       reject(new Error('Decoder worker did not start'))
     }, INIT_TIMEOUT)
 
-    const decode = (frame: ImageData) =>
-      new Promise<string | null>((done) => {
+    const decode = (frame: Frame) =>
+      new Promise<DecodeOutcome>((done) => {
         const id = nextId++
         waiting.set(id, done)
-        // The buffer transfers rather than copies, so a frame costs one memcpy
-        // out of the canvas and nothing more.
-        worker.postMessage({ type: 'decode', id, frame }, [frame.data.buffer])
+        // Both kinds transfer rather than copy: an ImageData's buffer moves, and
+        // an ImageBitmap moves as a handle, without the pixels being touched.
+        const transfer: Transferable[] = [frame instanceof ImageData ? frame.data.buffer : frame]
+        worker.postMessage({ type: 'decode', id, frame }, transfer)
       })
 
     worker.onmessage = (event: MessageEvent<DecodeResponse>) => {
       const message = event.data
       if (message.type === 'result') {
-        waiting.get(message.id)?.(message.value)
+        waiting.get(message.id)?.({ value: message.value, failed: message.failed })
         waiting.delete(message.id)
         return
       }
@@ -98,7 +112,7 @@ function openWorker(): Promise<Decoder> {
 
     worker.onerror = () => {
       // Release anything mid-flight, or the scan loop waits on a dead worker.
-      waiting.forEach((done) => done(null))
+      waiting.forEach((done) => done(BROKE))
       waiting.clear()
       if (settled) return
       settled = true
@@ -117,9 +131,13 @@ async function openInline(): Promise<Decoder> {
   return {
     native: detector.native,
     decode: (frame) =>
-      detector.detect(frame).then(
-        (hits) => hits[0]?.rawValue.trim() || null,
-        () => null,
-      ),
+      detector
+        .detect(frame)
+        .then(
+          (hits) => ({ value: hits[0]?.rawValue.trim() || null, failed: false }),
+          () => BROKE,
+        )
+        // Nothing transferred it away on this path, so release it here.
+        .finally(() => closeFrame(frame)),
   }
 }

@@ -1,4 +1,5 @@
 import wasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url'
+import type { Frame } from './frame.ts'
 
 /** Exported so the app can prefetch the binary on the browsers that need it. */
 export const WASM_URL = wasmUrl
@@ -10,7 +11,8 @@ const WASM_OVERRIDES = { locateFile: () => wasmUrl }
 export const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] as const
 
 export interface Detector {
-  detect(source: ImageData): Promise<Array<{ rawValue: string }>>
+  /** An ImageBitmap on the fast capture path, ImageData on the fallback. */
+  detect(source: Frame): Promise<Array<{ rawValue: string }>>
   /** False when we fell back to the WASM ponyfill, which the app prefetches. */
   native: boolean
 }

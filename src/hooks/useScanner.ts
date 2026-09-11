@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { openDecoder } from '../lib/decoder.ts'
-import { createFrameGrabber } from '../lib/frame.ts'
+import { closeFrame, createFrameGrabber } from '../lib/frame.ts'
 
 export type ScannerStatus = 'idle' | 'starting' | 'scanning'
 
@@ -44,6 +44,9 @@ const STALL_TIMEOUT = 1000
 
 /** In continuous mode, ignore the same barcode read again this soon. */
 const DUPLICATE_GAP = 5000
+
+/** Consecutive frames the decoder could not read before we blame the capture. */
+const CAPTURE_FAILURE_LIMIT = 3
 
 interface TorchConstraint {
   torch: boolean
@@ -218,28 +221,48 @@ export function useScanner(onDetect: (code: string) => void) {
     const grabber = createFrameGrabber()
     let lastValue = ''
     let lastAt = 0
+    let failures = 0
 
     try {
       while (current() && runningRef.current) {
         if (video.readyState >= 2 && !document.hidden) {
-          const frame = grabber.grab(video)
+          const frame = await grabber.grab(video)
+          if (!current() || !runningRef.current) {
+            closeFrame(frame)
+            break
+          }
+
           if (frame) {
-            const value = await decoder.decode(frame)
+            const outcome = await decoder.decode(frame)
             if (!current()) break
 
-            if (value) {
-              const now = Date.now()
-              const repeat = value === lastValue && now - lastAt < DUPLICATE_GAP
-              lastValue = value
-              lastAt = now
+            if (outcome.failed) {
+              // One unreadable frame is noise. A run of them means the capture
+              // path itself is wrong, and a silent scanner that never reads
+              // anything is the worst way to find that out, so drop back to the
+              // canvas fallback.
+              if (++failures >= CAPTURE_FAILURE_LIMIT) {
+                grabber.downgrade()
+                failures = 0
+              }
+            } else {
+              failures = 0
+              const value = outcome.value
 
-              if (!repeat) {
-                if (!continuousRef.current) {
-                  stop(SCANNED_NOTICE)
+              if (value) {
+                const now = Date.now()
+                const repeat = value === lastValue && now - lastAt < DUPLICATE_GAP
+                lastValue = value
+                lastAt = now
+
+                if (!repeat) {
+                  if (!continuousRef.current) {
+                    stop(SCANNED_NOTICE)
+                    onDetectRef.current(value)
+                    break
+                  }
                   onDetectRef.current(value)
-                  break
                 }
-                onDetectRef.current(value)
               }
             }
           }

@@ -9,7 +9,13 @@ import App from './App.tsx'
  * in, name is looked up, history and the search buttons follow.
  */
 vi.mock('./lib/decoder.ts', () => ({
-  openDecoder: vi.fn(() => Promise.resolve({ decode: () => Promise.resolve(null), native: true })),
+  NO_BARCODE: { value: null, failed: false },
+  openDecoder: vi.fn(() =>
+    Promise.resolve({
+      decode: () => Promise.resolve({ value: null, failed: false }),
+      native: true,
+    }),
+  ),
   warmDecoder: vi.fn(),
 }))
 
