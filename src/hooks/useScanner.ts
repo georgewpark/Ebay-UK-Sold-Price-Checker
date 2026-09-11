@@ -7,16 +7,32 @@ export type ScannerStatus = 'idle' | 'starting' | 'scanning'
 export interface Notice {
   title: string
   body: string
+  /** Errors are announced assertively; everything else waits its turn. */
+  tone: 'info' | 'error'
 }
 
 const IDLE_NOTICE: Notice = {
   title: 'Camera off',
   body: 'Start the scanner to look up a barcode.',
+  tone: 'info',
+}
+
+const STARTING_NOTICE: Notice = {
+  title: 'Starting the camera',
+  body: 'Allow camera access if your browser asks.',
+  tone: 'info',
+}
+
+const SCANNED_NOTICE: Notice = {
+  title: 'Scanned',
+  body: 'Start the scanner again for the next item.',
+  tone: 'info',
 }
 
 const HIDDEN_NOTICE: Notice = {
   title: 'Camera released',
   body: 'We switched the camera off when you left the page. Start it again to scan.',
+  tone: 'info',
 }
 
 /** Floor between decode attempts. The decoder runs off-thread, so this is about
@@ -115,7 +131,7 @@ export function useScanner(onDetect: (code: string) => void) {
 
     startingRef.current = true
     setStatus('starting')
-    setNotice(null)
+    setNotice(STARTING_NOTICE)
 
     let decoder
     try {
@@ -125,6 +141,7 @@ export function useScanner(onDetect: (code: string) => void) {
         stop({
           title: 'Scanner unavailable',
           body: 'The barcode reader did not load. Check your connection, or type a product name instead.',
+          tone: 'error',
         })
       }
       return
@@ -151,6 +168,7 @@ export function useScanner(onDetect: (code: string) => void) {
           body: secure
             ? 'Allow camera access for this site in your browser settings, then try again.'
             : 'Browsers only share a camera over HTTPS. Open this page on a secure address and reload.',
+          tone: 'error',
         })
       }
       return
@@ -186,6 +204,7 @@ export function useScanner(onDetect: (code: string) => void) {
     runningRef.current = true
     startingRef.current = false
     setStatus('scanning')
+    setNotice(null)
 
     const grabber = createFrameGrabber()
 
@@ -198,7 +217,7 @@ export function useScanner(onDetect: (code: string) => void) {
             if (!current()) break
 
             if (value) {
-              stop({ title: 'Scanned', body: 'Start the scanner again for the next item.' })
+              stop(SCANNED_NOTICE)
               onDetectRef.current(value)
               break
             }

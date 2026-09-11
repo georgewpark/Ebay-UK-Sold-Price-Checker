@@ -17,6 +17,8 @@ const RETICLE_INSET = `${RETICLE.y * 100}% ${RETICLE.x * 100}%`
 
 function Viewfinder({ videoRef, status, notice, flashKey, torch, onToggleScan }: Props) {
   const scanning = status === 'scanning'
+  const alert = notice?.tone === 'error' ? notice : null
+  const update = notice?.tone === 'error' ? null : notice
 
   return (
     <section
@@ -54,14 +56,13 @@ function Viewfinder({ videoRef, status, notice, flashKey, torch, onToggleScan }:
         />
       )}
 
+      {/* Two regions, both always mounted. "Camera blocked" should interrupt;
+          "Starting the camera" should not. Swapping the role on one node is not
+          reliably picked up, so each tone gets its own. */}
       <div role="status" aria-live="polite">
-        {notice && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-lens/70 px-8 text-center backdrop-blur-[1px]">
-            <p className="text-base font-semibold text-white">{notice.title}</p>
-            <p className="max-w-xs text-[13px] leading-relaxed text-white/70">{notice.body}</p>
-          </div>
-        )}
+        {update && <Overlay notice={update} />}
       </div>
+      <div role="alert">{alert && <Overlay notice={alert} />}</div>
 
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 p-4">
         <button
@@ -89,6 +90,15 @@ function Viewfinder({ videoRef, status, notice, flashKey, torch, onToggleScan }:
         )}
       </div>
     </section>
+  )
+}
+
+function Overlay({ notice }: { notice: Notice }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-lens/70 px-8 text-center backdrop-blur-[1px]">
+      <p className="text-base font-semibold text-white">{notice.title}</p>
+      <p className="max-w-xs text-[13px] leading-relaxed text-white/70">{notice.body}</p>
+    </div>
   )
 }
 
