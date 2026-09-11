@@ -122,17 +122,18 @@ export function useScanner(onDetect: (code: string) => void) {
     startingRef.current = false
     setStatus('scanning')
 
-    const grabFrame = createFrameGrabber()
+    const grabber = createFrameGrabber()
 
     while (runningRef.current) {
       if (video.readyState >= 2 && !document.hidden) {
-        const frame = grabFrame(video)
+        const frame = grabber.grab(video)
         if (frame) {
           try {
             const hits = await detector.detect(frame)
             const value = hits[0]?.rawValue.trim()
             if (value) {
               stop({ title: 'Scanned', body: 'Start the scanner again for the next item.' })
+              grabber.release()
               onDetectRef.current(value)
               return
             }
@@ -143,6 +144,7 @@ export function useScanner(onDetect: (code: string) => void) {
       }
       await new Promise((resolve) => setTimeout(resolve, FRAME_INTERVAL))
     }
+    grabber.release()
   }, [stop])
 
   const toggleTorch = useCallback(async () => {
