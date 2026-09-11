@@ -130,6 +130,62 @@ describe('History', () => {
     })
   })
 
+  /**
+   * Nothing here pressed anything: recording a scan of something already in the
+   * list drops that row and rebuilds it at the top, which takes the focused
+   * button out of the document just as surely. A browser blurs an element when
+   * it is only moved as well, so React reordering a stable key would not save it
+   * either. Either way the row is still on screen, so focus belongs back on it.
+   */
+  describe('focus, when a scan rewrites the list underneath', () => {
+    /** What useHistory.record does to a label it already holds. */
+    const rescanned = (entries: ScanEntry[], label: string): ScanEntry[] => {
+      const entry = entries.find((one) => one.label === label)!
+      return [{ ...entry, at: NOW }, ...entries.filter((one) => one !== entry)]
+    }
+
+    it('keeps focus on the row that moved', () => {
+      const props = { entries: ENTRIES, onRecall: vi.fn(), onRemove: vi.fn(), onClear: vi.fn() }
+      const { rerender } = render(<History {...props} />)
+      removeButton('Nintendo Switch').focus()
+
+      rerender(<History {...props} entries={rescanned(ENTRIES, 'Nintendo Switch')} />)
+
+      expect(removeButton('Nintendo Switch')).toHaveFocus()
+    })
+
+    it('puts focus back on the same button of that row, not just the row', () => {
+      const props = { entries: ENTRIES, onRecall: vi.fn(), onRemove: vi.fn(), onClear: vi.fn() }
+      const { rerender } = render(<History {...props} />)
+      screen.getByRole('button', { name: /^Nintendo Switch/ }).focus()
+
+      rerender(<History {...props} entries={rescanned(ENTRIES, 'Nintendo Switch')} />)
+
+      expect(screen.getByRole('button', { name: /^Nintendo Switch/ })).toHaveFocus()
+    })
+
+    it('leaves focus alone when it was never in the list', () => {
+      const props = { entries: ENTRIES, onRecall: vi.fn(), onRemove: vi.fn(), onClear: vi.fn() }
+      const { rerender } = render(
+        <>
+          <button type="button">Somewhere else</button>
+          <History {...props} />
+        </>,
+      )
+      const elsewhere = screen.getByRole('button', { name: 'Somewhere else' })
+      elsewhere.focus()
+
+      rerender(
+        <>
+          <button type="button">Somewhere else</button>
+          <History {...props} entries={rescanned(ENTRIES, 'Nintendo Switch')} />
+        </>,
+      )
+
+      expect(elsewhere).toHaveFocus()
+    })
+  })
+
   it('says what happened, since removing one row of three looks like nothing', async () => {
     render(<Live initial={ENTRIES} />)
     await userEvent.click(removeButton('Heinz Beans'))
