@@ -6,3 +6,8 @@ export interface ScanEntry {
   /** Epoch milliseconds. */
   at: number
 }
+
+export interface ScanStatus {
+  caption: string
+  spoken: string
+}

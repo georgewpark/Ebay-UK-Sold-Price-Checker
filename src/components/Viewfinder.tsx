@@ -21,7 +21,10 @@ export default function Viewfinder({
   const scanning = status === 'scanning'
 
   return (
-    <section className="relative aspect-4/3 w-full overflow-hidden rounded-card bg-lens ring-1 ring-line">
+    <section
+      aria-label="Barcode scanner"
+      className="relative aspect-4/3 w-full overflow-hidden rounded-card bg-lens ring-1 ring-line"
+    >
       <video
         ref={videoRef}
         playsInline
@@ -45,7 +48,7 @@ export default function Viewfinder({
         <div
           key={flashKey}
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 animate-[flash_360ms_ease-out] bg-accent"
+          className="pointer-events-none absolute inset-0 animate-[flash_360ms_ease-out_forwards] bg-accent"
         />
       )}
 
@@ -79,7 +82,7 @@ export default function Viewfinder({
                 : 'bg-[#1b1b1f] text-white ring-1 ring-white/70 focus-visible:outline-white'
             }`}
           >
-            Torch
+            {torch.on ? 'Torch on' : 'Torch off'}
           </button>
         )}
       </div>

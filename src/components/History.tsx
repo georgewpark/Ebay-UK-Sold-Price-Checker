@@ -24,7 +24,7 @@ export default function History({ entries, onRecall, onClear }: Props) {
         )}
       </div>
 
-      <div role="status" aria-live="polite">
+      <div role="status">
         {entries.length === 0 && (
           <p className="py-2 text-[13px] text-muted">
             Nothing scanned yet. Your last 40 lookups stay on this device.

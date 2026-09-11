@@ -7,16 +7,23 @@ import { useHistory } from './hooks/useHistory.ts'
 import { useScanner } from './hooks/useScanner.ts'
 import { ebayUrl, openTab } from './lib/ebay.ts'
 import { lookupName } from './lib/lookup.ts'
-import type { ScanEntry } from './lib/types.ts'
+import type { ScanEntry, ScanStatus } from './lib/types.ts'
+
+const NO_STATUS: ScanStatus = { caption: '', spoken: '' }
+
+function spell(code: string): string {
+  return code.split('').join(' ')
+}
 
 export default function App() {
   const [code, setCode] = useState('')
   const [term, setTerm] = useState('')
-  const [provenance, setProvenance] = useState('')
+  const [status, setStatus] = useState<ScanStatus>(NO_STATUS)
   const [flashKey, setFlashKey] = useState(0)
 
   const { entries, record, clear } = useHistory()
   const lookupId = useRef(0)
+  const termRef = useRef<HTMLInputElement>(null)
 
   const handleDetect = useCallback(
     (scanned: string) => {
@@ -25,17 +32,26 @@ export default function App() {
 
       setCode(scanned)
       setTerm(scanned)
-      setProvenance('Looking up a product name')
+      setStatus({
+        caption: 'Looking up a product name',
+        spoken: `Barcode ${spell(scanned)} scanned. Looking up a product name.`,
+      })
 
       const id = ++lookupId.current
       void lookupName(scanned).then((name) => {
         if (id !== lookupId.current) return
         if (name) {
           setTerm(name)
-          setProvenance('Name from a public barcode database. Edit it if it is wrong.')
+          setStatus({
+            caption: 'Name from a public barcode database. Edit it if it is wrong.',
+            spoken: `Found ${name}. Name from a public barcode database. Edit it if it is wrong.`,
+          })
           record(scanned, name)
         } else {
-          setProvenance('No name found, so we will search the barcode number instead.')
+          setStatus({
+            caption: 'No name found, so we will search the barcode number instead.',
+            spoken: `No name found for barcode ${spell(scanned)}. We will search the number instead.`,
+          })
           record(scanned, scanned)
         }
       })
@@ -58,8 +74,14 @@ export default function App() {
   const recall = useCallback((entry: ScanEntry) => {
     setCode(entry.code)
     setTerm(entry.label)
-    setProvenance('From your recent scans.')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setStatus({
+      caption: 'From your recent scans.',
+      spoken: `${entry.label}, from your recent scans.`,
+    })
+
+    termRef.current?.focus({ preventScroll: true })
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' })
   }, [])
 
   const toggleScan = useCallback(() => {
@@ -86,8 +108,9 @@ export default function App() {
 
         <SearchPanel
           code={code}
-          provenance={provenance}
+          status={status}
           term={term}
+          termRef={termRef}
           onTermChange={setTerm}
           onSold={() => search(true)}
           onLive={() => search(false)}
