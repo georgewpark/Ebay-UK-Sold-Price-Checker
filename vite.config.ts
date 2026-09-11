@@ -3,6 +3,7 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 const require = createRequire(import.meta.url)
 
@@ -70,7 +71,7 @@ function preloadBodyFont(): Plugin {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
@@ -125,6 +126,11 @@ export default defineConfig({
         enabled: false,
       },
     }),
+    // `npm run analyse`. A mode rather than an env var, because an inline
+    // VAR=1 prefix in an npm script does not survive cmd.exe.
+    mode === 'analyse'
+      ? visualizer({ filename: 'stats.html', gzipSize: true, brotliSize: true })
+      : null,
   ],
   worker: {
     /**
@@ -134,9 +140,14 @@ export default defineConfig({
      */
     format: 'es',
   },
+  build: {
+    // There is no analytics and no backend, so a user-reported error is all the
+    // signal we get. Maps make one readable.
+    sourcemap: true,
+  },
   server: {
     // Camera access needs a secure context. localhost counts, but to test on a
     // phone run `npm run dev -- --host` and tunnel it over HTTPS.
     host: true,
   },
-})
+}))
