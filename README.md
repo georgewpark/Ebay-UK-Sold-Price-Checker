@@ -1,6 +1,6 @@
 # eBay UK - Sold Price Checker
 
-Scan a barcode, get the product name, jump straight to what the thing actually sold for on eBay UK.
+Scan a barcode, get the product name, jump straight to what the product actually sold for on eBay UK.
 
 Point your phone at a barcode. The app reads it, looks up a product name, and opens eBay UK's completed listings in a new tab. Useful in a charity shop, a car boot sale, or anywhere you need to know what something is worth before you buy it.
 
