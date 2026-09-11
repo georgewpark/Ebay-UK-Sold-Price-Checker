@@ -41,6 +41,31 @@ const MISS: SourceResult = { name: null, limited: false, failed: false }
 
 const cache = new Map<string, LookupResult>()
 
+const ORIGINS = ['https://world.openfoodfacts.org', 'https://api.upcitemdb.com']
+let warmed = false
+
+/**
+ * Open the connections to both databases, at the point a lookup becomes likely.
+ *
+ * These used to be `preconnect` tags in the document head, which is too early:
+ * nothing can be looked up until someone has started the camera, granted access
+ * and lined up a barcode, and browsers close an unused socket after roughly ten
+ * seconds. The handshake was being paid on the critical path at load and then
+ * thrown away. The head keeps a `dns-prefetch`, which costs nothing and is the
+ * slow half on mobile anyway.
+ */
+export function warmLookups(): void {
+  if (warmed || typeof document === 'undefined') return
+  warmed = true
+  for (const href of ORIGINS) {
+    const link = document.createElement('link')
+    link.rel = 'preconnect'
+    link.href = href
+    link.crossOrigin = ''
+    document.head.append(link)
+  }
+}
+
 function remember(code: string, result: LookupResult): void {
   if (cache.size >= CACHE_LIMIT) {
     const oldest = cache.keys().next()

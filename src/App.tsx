@@ -9,7 +9,7 @@ import { useOnline } from './hooks/useOnline.ts'
 import { useScanner } from './hooks/useScanner.ts'
 import { warmDecoder } from './lib/decoder.ts'
 import { ebayUrl, openTab } from './lib/ebay.ts'
-import { lookupName } from './lib/lookup.ts'
+import { lookupName, warmLookups } from './lib/lookup.ts'
 import { NO_STATUS, describeLookup, recalled, scanned } from './lib/status.ts'
 import type { ScanEntry, ScanStatus } from './lib/types.ts'
 
@@ -94,6 +94,10 @@ export default function App() {
     if (scanner.status === 'scanning') {
       scanner.stop()
     } else {
+      // Opening the camera is the first moment a lookup becomes likely, and it
+      // is still several seconds ahead of one. Preconnecting at page load was
+      // too early: the sockets had usually idled out before the first scan.
+      warmLookups()
       void scanner.start()
     }
   }, [scanner])

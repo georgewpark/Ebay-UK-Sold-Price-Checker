@@ -14,10 +14,12 @@
     <meta name="apple-mobile-web-app-title" content="eBay UK - Sold Price Checker" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-    <!-- Both lookup APIs are cross-origin and hit on the very first scan, so
-         open the connections while the user is still reading the page. -->
-    <link rel="preconnect" href="https://world.openfoodfacts.org" crossorigin />
-    <link rel="preconnect" href="https://api.upcitemdb.com" crossorigin />
+    <!-- Resolve both lookup APIs early, but do not hold sockets open for them.
+         The first scan is several seconds away at best, by which time a
+         preconnect made here has idled out, so the app opens the connections
+         itself when the camera starts. See warmLookups in src/lib/lookup.ts. -->
+    <link rel="dns-prefetch" href="https://world.openfoodfacts.org" />
+    <link rel="dns-prefetch" href="https://api.upcitemdb.com" />
 
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
