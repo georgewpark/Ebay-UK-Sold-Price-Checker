@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { openDecoder } from '../lib/decoder.ts'
+import { NO_BARCODE, openDecoder } from '../lib/decoder.ts'
 import { closeFrame, createFrameGrabber } from '../lib/frame.ts'
 
 export type ScannerStatus = 'idle' | 'starting' | 'scanning'
@@ -225,50 +225,49 @@ export function useScanner(onDetect: (code: string) => void) {
 
     try {
       while (current() && runningRef.current) {
-        if (video.readyState >= 2 && !document.hidden) {
-          const frame = await grabber.grab(video)
-          if (!current() || !runningRef.current) {
-            closeFrame(frame)
-            break
-          }
-
-          if (frame) {
-            const outcome = await decoder.decode(frame)
-            if (!current()) break
-
-            if (outcome.failed) {
-              // One unreadable frame is noise. A run of them means the capture
-              // path itself is wrong, and a silent scanner that never reads
-              // anything is the worst way to find that out, so drop back to the
-              // canvas fallback.
-              if (++failures >= CAPTURE_FAILURE_LIMIT) {
-                grabber.downgrade()
-                failures = 0
-              }
-            } else {
-              failures = 0
-              const value = outcome.value
-
-              if (value) {
-                const now = Date.now()
-                const repeat = value === lastValue && now - lastAt < DUPLICATE_GAP
-                lastValue = value
-                lastAt = now
-
-                if (!repeat) {
-                  if (!continuousRef.current) {
-                    stop(SCANNED_NOTICE)
-                    onDetectRef.current(value)
-                    break
-                  }
-                  onDetectRef.current(value)
-                }
-              }
-            }
-          }
+        const usable = video.readyState >= 2 && !document.hidden
+        const frame = usable ? await grabber.grab(video) : null
+        if (!current() || !runningRef.current) {
+          closeFrame(frame)
+          break
         }
-        // Wait for a new frame, and never run faster than the floor.
-        await Promise.all([nextFrame(video), sleep(FRAME_INTERVAL)])
+
+        // Decode while we wait for the camera to deliver the next frame, rather
+        // than before we start waiting. The wait is a floor, so this is the
+        // difference between sampling every 100 ms and every 100 ms plus a
+        // decode: the WASM path was the slowest to decode and so, backwards,
+        // got the fewest looks at the barcode.
+        const decoding = frame ? decoder.decode(frame) : Promise.resolve(NO_BARCODE)
+        const [outcome] = await Promise.all([decoding, nextFrame(video), sleep(FRAME_INTERVAL)])
+        if (!current()) break
+
+        if (outcome.failed) {
+          // One unreadable frame is noise. A run of them means the capture path
+          // itself is wrong, and a silent scanner that never reads anything is
+          // the worst way to find that out, so drop to the canvas fallback.
+          if (++failures >= CAPTURE_FAILURE_LIMIT) {
+            grabber.downgrade()
+            failures = 0
+          }
+          continue
+        }
+        failures = 0
+
+        const value = outcome.value
+        if (!value) continue
+
+        const now = Date.now()
+        const repeat = value === lastValue && now - lastAt < DUPLICATE_GAP
+        lastValue = value
+        lastAt = now
+        if (repeat) continue
+
+        if (!continuousRef.current) {
+          stop(SCANNED_NOTICE)
+          onDetectRef.current(value)
+          break
+        }
+        onDetectRef.current(value)
       }
     } finally {
       grabber.release()
