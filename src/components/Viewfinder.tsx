@@ -25,13 +25,16 @@ function Viewfinder({ videoRef, status, notice, flashKey, torch, onToggleScan }:
       aria-label="Barcode scanner"
       className="relative aspect-4/3 w-full overflow-hidden rounded-card bg-lens ring-1 ring-line"
     >
+      {/* The feed carries nothing a screen reader can use, and the notice and
+          caption below already report what the scanner is doing. Labelling it
+          only adds an unlabelled-looking generic to the tree. */}
       <video
         ref={videoRef}
         playsInline
         muted
         autoPlay
+        aria-hidden="true"
         className="h-full w-full object-cover"
-        aria-label="Camera viewfinder"
       />
 
       {scanning && (
@@ -74,20 +77,10 @@ function Viewfinder({ videoRef, status, notice, flashKey, torch, onToggleScan }:
           {status === 'starting' ? 'Starting' : scanning ? 'Stop' : 'Start scanning'}
         </button>
 
-        {torch.available && (
-          <button
-            type="button"
-            onClick={torch.toggle}
-            aria-pressed={torch.on}
-            className={`rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg backdrop-blur transition focus-visible:outline-offset-0 ${
-              torch.on
-                ? 'bg-accent text-accent-ink focus-visible:outline-[#171a0c]'
-                : 'bg-[#1b1b1f] text-white ring-1 ring-white/70 focus-visible:outline-white'
-            }`}
-          >
-            {torch.on ? 'Torch on' : 'Torch off'}
-          </button>
-        )}
+        {/* A fixed label plus aria-pressed. The label used to change with the
+            state as well, so a screen reader announced "Torch on, pressed",
+            which leaves you guessing which half is the current state. */}
+        {torch.available && <PillToggle label="Torch" pressed={torch.on} onToggle={torch.toggle} />}
       </div>
     </section>
   )
@@ -99,6 +92,39 @@ function Overlay({ notice }: { notice: Notice }) {
       <p className="text-base font-semibold text-white">{notice.title}</p>
       <p className="max-w-xs text-[13px] leading-relaxed text-white/70">{notice.body}</p>
     </div>
+  )
+}
+
+function PillToggle({
+  label,
+  pressed,
+  onToggle,
+  hint,
+}: {
+  label: string
+  pressed: boolean
+  onToggle: () => void
+  hint?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={pressed}
+      title={hint}
+      className={`flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg backdrop-blur transition focus-visible:outline-offset-0 ${
+        pressed
+          ? 'bg-accent text-accent-ink focus-visible:outline-[#171a0c]'
+          : 'bg-[#1b1b1f] text-white ring-1 ring-white/70 focus-visible:outline-white'
+      }`}
+    >
+      {/* Colour alone must not carry the state (WCAG 1.4.1), so the on state
+          also gets a mark. It is decorative: aria-pressed is the real signal. */}
+      <span aria-hidden="true" className="w-3 text-center leading-none">
+        {pressed ? '✓' : '·'}
+      </span>
+      {label}
+    </button>
   )
 }
 
