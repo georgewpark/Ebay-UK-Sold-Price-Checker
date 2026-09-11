@@ -30,6 +30,14 @@ assertOneDecoderCopy()
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  worker: {
+    /**
+     * Vite defaults workers to iife, which cannot code-split, so the dynamic
+     * import of the ponyfill was being inlined and every Chrome user paid 43 kB
+     * for a decoder their browser will never run. An ES worker keeps it lazy.
+     */
+    format: 'es',
+  },
   server: {
     // Camera access needs a secure context. localhost counts, but to test on a
     // phone run `npm run dev -- --host` and tunnel it over HTTPS.

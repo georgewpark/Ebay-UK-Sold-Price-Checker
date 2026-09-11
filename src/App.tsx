@@ -5,7 +5,7 @@ import SearchPanel from './components/SearchPanel.tsx'
 import History from './components/History.tsx'
 import { useHistory } from './hooks/useHistory.ts'
 import { useScanner } from './hooks/useScanner.ts'
-import { getDetector } from './lib/detector.ts'
+import { warmDecoder } from './lib/decoder.ts'
 import { ebayUrl, openTab } from './lib/ebay.ts'
 import { lookupName } from './lib/lookup.ts'
 import type { ScanEntry, ScanStatus } from './lib/types.ts'
@@ -27,15 +27,14 @@ export default function App() {
   const termRef = useRef<HTMLInputElement>(null)
 
   // Warm the barcode reader while the user is still reading the page. On the
-  // fallback path this fetches the 43 kB module but not the 1 MB binary, which
-  // only loads once a scan actually starts.
+  // fallback path this also pulls the WASM binary down behind it, so the slow
+  // browsers stop paying for it at the moment the camera opens.
   useEffect(() => {
-    const warm = () => void getDetector().catch(() => {})
     if (typeof window.requestIdleCallback === 'function') {
-      const handle = window.requestIdleCallback(warm)
+      const handle = window.requestIdleCallback(warmDecoder)
       return () => window.cancelIdleCallback?.(handle)
     }
-    const timer = setTimeout(warm, 1200)
+    const timer = setTimeout(warmDecoder, 1200)
     return () => clearTimeout(timer)
   }, [])
 

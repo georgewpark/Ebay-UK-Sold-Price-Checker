@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getDetector } from '../lib/detector.ts'
+import { openDecoder } from '../lib/decoder.ts'
 import { createFrameGrabber } from '../lib/frame.ts'
 
 export type ScannerStatus = 'idle' | 'starting' | 'scanning'
@@ -70,9 +70,9 @@ export function useScanner(onDetect: (code: string) => void) {
     setStatus('starting')
     setNotice(null)
 
-    let detector
+    let decoder
     try {
-      detector = await getDetector()
+      decoder = await openDecoder()
     } catch {
       stop({
         title: 'Scanner unavailable',
@@ -128,17 +128,12 @@ export function useScanner(onDetect: (code: string) => void) {
       if (video.readyState >= 2 && !document.hidden) {
         const frame = grabber.grab(video)
         if (frame) {
-          try {
-            const hits = await detector.detect(frame)
-            const value = hits[0]?.rawValue.trim()
-            if (value) {
-              stop({ title: 'Scanned', body: 'Start the scanner again for the next item.' })
-              grabber.release()
-              onDetectRef.current(value)
-              return
-            }
-          } catch {
-            /* a dropped frame is not worth surfacing */
+          const value = await decoder.decode(frame)
+          if (value) {
+            stop({ title: 'Scanned', body: 'Start the scanner again for the next item.' })
+            grabber.release()
+            onDetectRef.current(value)
+            return
           }
         }
       }

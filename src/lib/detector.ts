@@ -1,44 +1,48 @@
 import wasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url'
 
+/** Exported so the app can prefetch the binary on the browsers that need it. */
+export const WASM_URL = wasmUrl
+
 /** Hoisted so the reference stays stable: prepareZXingModule caches by shallow
     equality, and a fresh object each call would re-instantiate the module. */
 const WASM_OVERRIDES = { locateFile: () => wasmUrl }
 
-export const FORMATS = [
-  'ean_13',
-  'ean_8',
-  'upc_a',
-  'upc_e',
-  'code_128',
-  'code_39',
-  'itf',
-] as const
+export const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'] as const
 
 export interface Detector {
-  detect(source: ImageBitmapSource): Promise<Array<{ rawValue: string }>>
+  detect(source: ImageData): Promise<Array<{ rawValue: string }>>
+  /** False when we fell back to the WASM ponyfill, which the app prefetches. */
+  native: boolean
 }
 
 interface NativeDetectorCtor {
-  new (options: { formats: string[] }): Detector
+  new (options: { formats: string[] }): { detect: Detector['detect'] }
   getSupportedFormats(): Promise<string[]>
 }
 
-let cached: Detector | null = null
+/** Cache the promise, not the value: two warm calls must not build two decoders. */
+let pending: Promise<Detector> | null = null
+
+export function getDetector(): Promise<Detector> {
+  pending ??= build()
+  return pending
+}
 
 /**
- * Prefer the browser's own BarcodeDetector. Where it is missing (Safari, Firefox)
+ * Prefer the platform's own BarcodeDetector. Where it is missing (Safari, Firefox)
  * fall back to the WASM ponyfill, which only downloads when it is actually needed.
+ *
+ * Reads `globalThis` rather than `window` so this runs unchanged inside the
+ * decoder worker, where Chrome also exposes a native detector.
  */
-export async function getDetector(): Promise<Detector> {
-  if (cached) return cached
-
-  const native = (window as unknown as { BarcodeDetector?: NativeDetectorCtor }).BarcodeDetector
+async function build(): Promise<Detector> {
+  const native = (globalThis as { BarcodeDetector?: NativeDetectorCtor }).BarcodeDetector
   if (native) {
     try {
       const supported = await native.getSupportedFormats()
       if (supported.includes('ean_13')) {
-        cached = new native({ formats: FORMATS.filter((f) => supported.includes(f)) })
-        return cached
+        const instance = new native({ formats: FORMATS.filter((f) => supported.includes(f)) })
+        return { detect: (source) => instance.detect(source), native: true }
       }
     } catch {
       /* fall through to the ponyfill */
@@ -50,6 +54,6 @@ export async function getDetector(): Promise<Detector> {
   // from jsDelivr at scan time, which costs a fresh DNS lookup and TLS handshake on
   // the one path that is already the slow one.
   prepareZXingModule({ overrides: WASM_OVERRIDES })
-  cached = new BarcodeDetector({ formats: [...FORMATS] }) as unknown as Detector
-  return cached
+  const instance = new BarcodeDetector({ formats: [...FORMATS] })
+  return { detect: (source) => instance.detect(source), native: false }
 }
