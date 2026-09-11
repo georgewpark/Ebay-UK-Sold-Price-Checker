@@ -150,13 +150,15 @@ const Row = memo(function Row({
         </span>
         {/* The row shows "14:32" for today and a date for anything older, so
             yesterday's scan is no longer indistinguishable from this morning's.
-            The title and the datetime carry the unabbreviated version. */}
+            The unabbreviated version used to live only in the title, which never
+            reaches a touch or keyboard user, so it is spoken instead. */}
         <time
           dateTime={isoScanTime(entry.at)}
           title={when}
           className="shrink-0 text-[13px] text-muted tabular"
         >
-          {formatScanTime(entry.at)}
+          <span aria-hidden="true">{formatScanTime(entry.at)}</span>
+          <span className="sr-only">{when}</span>
         </time>
       </button>
 

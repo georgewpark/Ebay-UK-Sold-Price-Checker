@@ -86,6 +86,14 @@ describe('History', () => {
     expect(screen.getAllByText('vintage teapot')).toHaveLength(1)
   })
 
+  it('spells the date out for a screen reader, not only in a tooltip', () => {
+    setup()
+    // The tooltip never reaches a touch or keyboard user, so the row says it.
+    expect(screen.getByRole('button', { name: /^Heinz Beans/ })).toHaveAccessibleName(
+      /11 September 2025/,
+    )
+  })
+
   /**
    * Every one of these used to drop focus to <body>, because the button that
    * was pressed is the button that goes away. A keyboard or screen reader user
