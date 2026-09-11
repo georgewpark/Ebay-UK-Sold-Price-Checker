@@ -1,4 +1,4 @@
-import { memo, useId } from 'react'
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { describeScanTime, formatScanTime, isoScanTime } from '../lib/time.ts'
 import type { ScanEntry } from '../lib/types.ts'
 
@@ -9,8 +9,62 @@ interface Props {
   onClear: () => void
 }
 
+/** Where focus should land once the list has re-rendered without the button
+    that was just pressed: a row index, or the heading. */
+type Restore = number | 'heading'
+
 function History({ entries, onRecall, onRemove, onClear }: Props) {
   const headingId = useId()
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const restore = useRef<Restore | null>(null)
+  const [message, setMessage] = useState('')
+
+  // Read inside a stable callback, so removing a row does not have to take the
+  // row's index as a prop. An index prop would change for every row below a new
+  // scan, which is exactly the re-render the memo on Row exists to avoid.
+  const latest = useRef(entries)
+  useEffect(() => {
+    latest.current = entries
+  })
+
+  /**
+   * Removing a row, or clearing the list, unmounts the button that was just
+   * pressed. Browsers drop focus to <body> when that happens, so a keyboard or
+   * screen reader user is silently moved to the top of the document. Put focus
+   * somewhere deliberate instead, before the browser paints.
+   */
+  useLayoutEffect(() => {
+    const target = restore.current
+    if (target === null) return
+    restore.current = null
+
+    const toHeading = () => headingRef.current?.focus({ preventScroll: true })
+    if (target === 'heading') return toHeading()
+
+    const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('[data-remove]')
+    if (!buttons?.length) return toHeading()
+    // The row that took the removed one's place, or the new last row.
+    buttons[Math.min(target, buttons.length - 1)].focus()
+  }, [entries])
+
+  const remove = useCallback(
+    (entry: ScanEntry) => {
+      const index = latest.current.findIndex(
+        (candidate) => candidate.at === entry.at && candidate.code === entry.code,
+      )
+      restore.current = index < 0 ? 'heading' : index
+      setMessage(`Removed ${entry.label} from recent scans.`)
+      onRemove(entry)
+    },
+    [onRemove],
+  )
+
+  const clear = () => {
+    restore.current = 'heading'
+    setMessage('Recent scans cleared.')
+    onClear()
+  }
 
   return (
     // Naming the section makes it a landmark, the way the scanner and search
@@ -19,14 +73,28 @@ function History({ entries, onRecall, onRemove, onClear }: Props) {
       aria-labelledby={headingId}
       className="rounded-card border border-line bg-surface px-4 py-3 shadow-xs"
     >
+      {/* Removing one row out of ten changes nothing a screen reader would
+          otherwise notice, so say what happened. Permanently mounted, so the
+          region is in the accessibility tree before it has anything to report. */}
+      <p role="status" className="sr-only">
+        {message}
+      </p>
+
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id={headingId} className="text-sm font-semibold text-ink">
+        {/* tabIndex -1 so it can take focus when the list empties, without
+            joining the tab order for everyone else. */}
+        <h2
+          id={headingId}
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-sm font-semibold text-ink"
+        >
           Recent scans
         </h2>
         {entries.length > 0 && (
           <button
             type="button"
-            onClick={onClear}
+            onClick={clear}
             className="-my-1.5 -mr-2 px-2 py-1.5 text-[13px] text-muted underline underline-offset-2"
           >
             Clear
@@ -34,19 +102,17 @@ function History({ entries, onRecall, onRemove, onClear }: Props) {
         )}
       </div>
 
-      <div role="status">
-        {entries.length === 0 && (
-          <p className="py-2 text-[13px] text-muted">
-            Nothing scanned yet. Your last 40 lookups stay on this device.
-          </p>
-        )}
-      </div>
+      {entries.length === 0 && (
+        <p className="py-2 text-[13px] text-muted">
+          Nothing scanned yet. Your last 40 lookups stay on this device.
+        </p>
+      )}
 
       {entries.length > 0 && (
-        <ul className="mt-1 divide-y divide-line">
+        <ul ref={listRef} className="mt-1 divide-y divide-line">
           {entries.map((entry) => (
             <li key={`${entry.code}-${entry.at}`} className="flex items-center gap-1">
-              <Row entry={entry} onRecall={onRecall} onRemove={onRemove} />
+              <Row entry={entry} onRecall={onRecall} onRemove={remove} />
             </li>
           ))}
         </ul>
@@ -98,6 +164,7 @@ const Row = memo(function Row({
           square, so it clears WCAG 2.5.8 with room to spare. */}
       <button
         type="button"
+        data-remove
         onClick={() => onRemove(entry)}
         aria-label={`Remove ${entry.label} from recent scans`}
         className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted transition hover:text-ink"

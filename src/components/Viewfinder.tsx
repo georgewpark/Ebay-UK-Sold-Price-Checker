@@ -82,11 +82,17 @@ function Viewfinder({
       <div role="alert">{alert && <Overlay notice={alert} />}</div>
 
       <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-2 p-4">
+        {/* aria-disabled rather than disabled. Browsers blur an element at the
+            moment it becomes disabled, so pressing this with a keyboard used to
+            drop focus to <body> just as the permission prompt opened. Starting
+            is a no-op instead, the way SearchPanel handles its blocked buttons. */}
         <button
           type="button"
-          onClick={onToggleScan}
-          disabled={status === 'starting'}
-          className="rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-[#111113] shadow-lg backdrop-blur transition focus-visible:outline-[#111113] focus-visible:outline-offset-0 active:scale-[0.98] disabled:opacity-60"
+          onClick={() => {
+            if (status !== 'starting') onToggleScan()
+          }}
+          aria-disabled={status === 'starting'}
+          className="rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-[#111113] shadow-lg backdrop-blur transition focus-visible:outline-[#111113] focus-visible:outline-offset-0 active:scale-[0.98] aria-disabled:opacity-60"
         >
           {status === 'starting' ? 'Starting' : scanning ? 'Stop' : 'Start scanning'}
         </button>

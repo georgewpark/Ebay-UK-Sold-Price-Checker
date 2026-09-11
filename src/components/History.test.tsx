@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -26,6 +27,23 @@ function setup(entries = ENTRIES) {
   render(<History {...props} />)
   return props
 }
+
+/** Focus only moves once the list has actually re-rendered without the button
+    that was pressed, so these cases need the list to own its own state. */
+function Live({ initial }: { initial: ScanEntry[] }) {
+  const [entries, setEntries] = useState(initial)
+  return (
+    <History
+      entries={entries}
+      onRecall={vi.fn()}
+      onRemove={(entry) => setEntries((current) => current.filter((one) => one !== entry))}
+      onClear={() => setEntries([])}
+    />
+  )
+}
+
+const removeButton = (label: string) =>
+  screen.getByRole('button', { name: `Remove ${label} from recent scans` })
 
 describe('History', () => {
   it('is a landmark a screen reader can jump to', () => {
@@ -66,5 +84,47 @@ describe('History', () => {
   it('hides the barcode when it is the same as the label', () => {
     setup([{ code: 'vintage teapot', label: 'vintage teapot', at: NOW }])
     expect(screen.getAllByText('vintage teapot')).toHaveLength(1)
+  })
+
+  /**
+   * Every one of these used to drop focus to <body>, because the button that
+   * was pressed is the button that goes away. A keyboard or screen reader user
+   * was silently moved to the top of the document.
+   */
+  describe('focus, once the pressed button has gone', () => {
+    const THREE: ScanEntry[] = [
+      ...ENTRIES,
+      { code: '5060337502900', label: 'Brewdog Punk IPA', at: NOW - 172_800_000 },
+    ]
+
+    it('moves to the row that took the removed row’s place', async () => {
+      render(<Live initial={THREE} />)
+      await userEvent.click(removeButton('Heinz Beans'))
+      expect(removeButton('Nintendo Switch')).toHaveFocus()
+    })
+
+    it('moves to the new last row when the last one goes', async () => {
+      render(<Live initial={THREE} />)
+      await userEvent.click(removeButton('Brewdog Punk IPA'))
+      expect(removeButton('Nintendo Switch')).toHaveFocus()
+    })
+
+    it('falls back to the heading when the last row goes', async () => {
+      render(<Live initial={[ENTRIES[0]]} />)
+      await userEvent.click(removeButton('Heinz Beans'))
+      expect(screen.getByRole('heading', { name: 'Recent scans' })).toHaveFocus()
+    })
+
+    it('lands on the heading after clearing', async () => {
+      render(<Live initial={THREE} />)
+      await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+      expect(screen.getByRole('heading', { name: 'Recent scans' })).toHaveFocus()
+    })
+  })
+
+  it('says what happened, since removing one row of three looks like nothing', async () => {
+    render(<Live initial={ENTRIES} />)
+    await userEvent.click(removeButton('Heinz Beans'))
+    expect(screen.getByRole('status')).toHaveTextContent('Removed Heinz Beans from recent scans.')
   })
 })
