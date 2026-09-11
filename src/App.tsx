@@ -128,10 +128,15 @@ export default function App() {
         <History entries={entries} onRecall={recall} onRemove={remove} onClear={clear} />
       </main>
 
-      <p className="px-1 pt-1 text-[12px] leading-relaxed text-muted">
-        Searches run on eBay UK and open in a new tab. eBay asks you to sign in before it shows sold
-        prices, so sign in once on this device and every lookup after that goes straight through.
-      </p>
+      {/* A landmark, so this is not the one piece of the page that screen
+          reader landmark navigation skips straight past. */}
+      <footer className="px-1 pt-1 text-[12px] leading-relaxed text-muted">
+        <p>
+          Searches run on eBay UK and open in a new tab. eBay asks you to sign in before it shows
+          sold prices, so sign in once on this device and every lookup after that goes straight
+          through.
+        </p>
+      </footer>
     </div>
   )
 }
