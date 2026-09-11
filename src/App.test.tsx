@@ -76,10 +76,15 @@ describe('App', () => {
       vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     })
 
+    /** Exact, because the same sentence now opens both the visible banner and
+        the sr-only announcement, and only the banner is a bare "You are
+        offline." on its own. */
+    const banner = () => screen.queryByText('You are offline.')
+
     it('explains what still works and refuses to open a dead tab', async () => {
       render(<App />)
 
-      expect(screen.getByText(/you are offline/i)).toBeInTheDocument()
+      expect(banner()).toBeInTheDocument()
 
       await userEvent.type(screen.getByLabelText(/search eBay UK for/i), 'vintage teapot')
       await userEvent.click(screen.getByRole('button', { name: /see sold prices/i }))
@@ -87,15 +92,39 @@ describe('App', () => {
       expect(window.open).not.toHaveBeenCalled()
     })
 
+    /**
+     * The live region has to be mounted and empty before the news arrives. A
+     * region that appears at the same moment as its text, or that was sitting
+     * at display:none until then, is not reliably announced.
+     */
+    it('announces the drop through a region that was already there', async () => {
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+      render(<App />)
+
+      // The nodes that exist while there is nothing to announce. Comparing node
+      // identity afterwards is the whole point: the message has to arrive in a
+      // region that was already in the accessibility tree, not alongside one.
+      const mounted = screen.getAllByRole('status')
+      expect(mounted.length).toBeGreaterThan(0)
+
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+      window.dispatchEvent(new Event('offline'))
+
+      await waitFor(() => {
+        const announced = mounted.some((node) => /you are offline/i.test(node.textContent ?? ''))
+        expect(announced).toBe(true)
+      })
+    })
+
     it('hides the banner again once the connection returns', async () => {
       render(<App />)
-      expect(screen.getByText(/you are offline/i)).toBeInTheDocument()
+      expect(banner()).toBeInTheDocument()
 
       vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
       window.dispatchEvent(new Event('online'))
 
       await waitFor(() => {
-        expect(screen.queryByText(/you are offline/i)).not.toBeInTheDocument()
+        expect(banner()).not.toBeInTheDocument()
       })
     })
   })

@@ -124,8 +124,12 @@ test.describe('searching', () => {
     await page.goto('/')
     await page.getByLabel('Search eBay UK for').fill('vintage teapot')
 
+    // Exact: the same sentence opens the sr-only announcement as well, and only
+    // the visible banner is a bare "You are offline." on its own.
+    const banner = page.getByText('You are offline.', { exact: true })
+
     await context.setOffline(true)
-    await expect(page.getByText(/You are offline/)).toBeVisible()
+    await expect(banner).toBeVisible()
 
     const sold = page.getByRole('button', { name: /See sold prices/ })
     await expect(sold).toHaveAttribute('aria-disabled', 'true')
@@ -135,7 +139,7 @@ test.describe('searching', () => {
     expect(context.pages()).toHaveLength(1)
 
     await context.setOffline(false)
-    await expect(page.getByText(/You are offline/)).toBeHidden()
+    await expect(banner).toBeHidden()
   })
 })
 
