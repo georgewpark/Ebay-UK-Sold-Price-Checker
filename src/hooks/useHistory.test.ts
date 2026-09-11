@@ -65,6 +65,18 @@ describe('useHistory', () => {
     expect(result.current.entries[0].label).toBe('Item 44')
   })
 
+  it('removes a single row without touching the rest', () => {
+    const { result } = renderHook(() => useHistory())
+
+    act(() => result.current.record('1', 'Beans'))
+    act(() => result.current.record('2', 'Switch'))
+    const target = result.current.entries[0]
+    act(() => result.current.remove(target))
+
+    expect(result.current.entries.map((entry) => entry.label)).toEqual(['Beans'])
+    expect(stored()).toHaveLength(1)
+  })
+
   it('clears everything', () => {
     const { result } = renderHook(() => useHistory())
     act(() => result.current.record('1', 'Beans'))

@@ -20,7 +20,7 @@ export default function App() {
   const [flashKey, setFlashKey] = useState(0)
 
   const online = useOnline()
-  const { entries, record, clear } = useHistory()
+  const { entries, record, remove, clear } = useHistory()
   const lookup = useRef<AbortController | null>(null)
   const termRef = useRef<HTMLInputElement>(null)
 
@@ -125,7 +125,7 @@ export default function App() {
           onLive={onLive}
         />
 
-        <History entries={entries} onRecall={recall} onClear={clear} />
+        <History entries={entries} onRecall={recall} onRemove={remove} onClear={clear} />
       </main>
 
       <p className="px-1 pt-1 text-[12px] leading-relaxed text-muted">

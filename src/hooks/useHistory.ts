@@ -67,7 +67,13 @@ export function useHistory() {
     })
   }, [])
 
+  const remove = useCallback((target: ScanEntry) => {
+    setEntries((current) =>
+      current.filter((entry) => entry.at !== target.at || entry.code !== target.code),
+    )
+  }, [])
+
   const clear = useCallback(() => setEntries([]), [])
 
-  return { entries, record, clear }
+  return { entries, record, remove, clear }
 }
