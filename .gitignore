@@ -1,6 +1,12 @@
 node_modules
 dist
 dist-ssr
+dev-dist
+coverage
+stats.html
+e2e/fixtures
+playwright-report
+test-results
 *.local
 .vite
 .DS_Store
