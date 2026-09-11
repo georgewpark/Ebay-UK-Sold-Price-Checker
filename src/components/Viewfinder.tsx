@@ -3,19 +3,33 @@ import type { RefObject } from 'react'
 import type { Notice, ScannerStatus } from '../hooks/useScanner.ts'
 import { RETICLE } from '../lib/frame.ts'
 
+interface Toggle {
+  on: boolean
+  toggle: () => void
+}
+
 interface Props {
   videoRef: RefObject<HTMLVideoElement | null>
   status: ScannerStatus
   notice: Notice | null
   flashKey: number
-  torch: { available: boolean; on: boolean; toggle: () => void }
+  torch: Toggle & { available: boolean }
+  keepScanning: Toggle
   onToggleScan: () => void
 }
 
 /** Drawn from the same numbers the decoder crops to, so the box tells the truth. */
 const RETICLE_INSET = `${RETICLE.y * 100}% ${RETICLE.x * 100}%`
 
-function Viewfinder({ videoRef, status, notice, flashKey, torch, onToggleScan }: Props) {
+function Viewfinder({
+  videoRef,
+  status,
+  notice,
+  flashKey,
+  torch,
+  keepScanning,
+  onToggleScan,
+}: Props) {
   const scanning = status === 'scanning'
   const alert = notice?.tone === 'error' ? notice : null
   const update = notice?.tone === 'error' ? null : notice
@@ -67,7 +81,7 @@ function Viewfinder({ videoRef, status, notice, flashKey, torch, onToggleScan }:
       </div>
       <div role="alert">{alert && <Overlay notice={alert} />}</div>
 
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 p-4">
+      <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-2 p-4">
         <button
           type="button"
           onClick={onToggleScan}
@@ -81,6 +95,13 @@ function Viewfinder({ videoRef, status, notice, flashKey, torch, onToggleScan }:
             state as well, so a screen reader announced "Torch on, pressed",
             which leaves you guessing which half is the current state. */}
         {torch.available && <PillToggle label="Torch" pressed={torch.on} onToggle={torch.toggle} />}
+
+        <PillToggle
+          label="Keep scanning"
+          pressed={keepScanning.on}
+          onToggle={keepScanning.toggle}
+          hint="Stay on the camera and read one item after another"
+        />
       </div>
     </section>
   )

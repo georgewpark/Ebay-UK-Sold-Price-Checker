@@ -128,6 +128,7 @@ export default function App() {
           notice={scanner.notice}
           flashKey={flashKey}
           torch={scanner.torch}
+          keepScanning={scanner.keepScanning}
           onToggleScan={toggleScan}
         />
 

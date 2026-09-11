@@ -42,6 +42,9 @@ const FRAME_INTERVAL = 100
 /** If the video stalls, stop waiting on it and re-check whether we should run. */
 const STALL_TIMEOUT = 1000
 
+/** In continuous mode, ignore the same barcode read again this soon. */
+const DUPLICATE_GAP = 5000
+
 interface TorchConstraint {
   torch: boolean
 }
@@ -102,6 +105,12 @@ export function useScanner(onDetect: (code: string) => void) {
   const [notice, setNotice] = useState<Notice | null>(IDLE_NOTICE)
   const [torchAvailable, setTorchAvailable] = useState(false)
   const [torchOn, setTorchOn] = useState(false)
+  const [continuous, setContinuous] = useState(false)
+
+  const continuousRef = useRef(continuous)
+  useEffect(() => {
+    continuousRef.current = continuous
+  })
 
   const releaseCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -207,6 +216,8 @@ export function useScanner(onDetect: (code: string) => void) {
     setNotice(null)
 
     const grabber = createFrameGrabber()
+    let lastValue = ''
+    let lastAt = 0
 
     try {
       while (current() && runningRef.current) {
@@ -217,9 +228,19 @@ export function useScanner(onDetect: (code: string) => void) {
             if (!current()) break
 
             if (value) {
-              stop(SCANNED_NOTICE)
-              onDetectRef.current(value)
-              break
+              const now = Date.now()
+              const repeat = value === lastValue && now - lastAt < DUPLICATE_GAP
+              lastValue = value
+              lastAt = now
+
+              if (!repeat) {
+                if (!continuousRef.current) {
+                  stop(SCANNED_NOTICE)
+                  onDetectRef.current(value)
+                  break
+                }
+                onDetectRef.current(value)
+              }
             }
           }
         }
@@ -243,6 +264,8 @@ export function useScanner(onDetect: (code: string) => void) {
       setTorchAvailable(false)
     }
   }, [torchOn])
+
+  const toggleContinuous = useCallback(() => setContinuous((on) => !on), [])
 
   // Holding a camera open behind a hidden tab costs battery and keeps the
   // indicator light on for no reason.
@@ -270,8 +293,13 @@ export function useScanner(onDetect: (code: string) => void) {
     [torchAvailable, torchOn, toggleTorch],
   )
 
+  const keepScanning = useMemo(
+    () => ({ on: continuous, toggle: toggleContinuous }),
+    [continuous, toggleContinuous],
+  )
+
   return useMemo(
-    () => ({ videoRef, status, notice, start, stop, torch }),
-    [status, notice, start, stop, torch],
+    () => ({ videoRef, status, notice, start, stop, torch, keepScanning }),
+    [status, notice, start, stop, torch, keepScanning],
   )
 }
