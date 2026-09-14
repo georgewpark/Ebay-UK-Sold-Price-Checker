@@ -105,9 +105,14 @@ export default function App() {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-120 flex-col gap-3 px-4 pb-10 pt-5">
       <Masthead />
-      <OfflineBanner online={online} />
 
+      {/* Inside the landmark, not between the header and it. Out there the
+          banner was the one piece of the page that belonged to no landmark at
+          all, so anyone moving by landmark stepped straight over the notice
+          telling them why searching is about to fail. */}
       <main className="flex flex-col gap-3">
+        <OfflineBanner online={online} />
+
         <Viewfinder
           videoRef={scanner.videoRef}
           status={scanner.status}
