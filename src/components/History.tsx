@@ -185,7 +185,11 @@ const Row = memo(function Row({
         className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 text-left"
       >
         <span className="min-w-0">
-          <span className="block truncate text-[0.9375rem] text-ink">{entry.label}</span>
+          {/* Wraps rather than truncates. A real product name runs to about
+              twice the width of this column, and an ellipsis put the rest out
+              of reach of anyone reading the screen: title is no answer here,
+              for the same reason it was not for the date below. */}
+          <span className="block wrap-break-word text-[0.9375rem] text-ink">{entry.label}</span>
           {entry.code !== entry.label && (
             <span className="block font-mono text-[0.6875rem] tracking-wider text-muted tabular">
               {entry.code}
