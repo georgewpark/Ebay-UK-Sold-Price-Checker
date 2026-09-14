@@ -141,7 +141,7 @@ function Overlay({ notice }: { notice: Notice }) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-lens/70 px-8 text-center backdrop-blur-[1px]">
       <p className="text-base font-semibold text-white">{notice.title}</p>
-      <p className="max-w-xs text-[13px] leading-relaxed text-white/70">{notice.body}</p>
+      <p className="max-w-xs text-[0.8125rem] leading-relaxed text-white/70">{notice.body}</p>
     </div>
   )
 }

@@ -121,6 +121,7 @@ The target is WCAG 2.2 AA, and it is treated as a requirement rather than a nice
 - Nothing that disappears leaves focus stranded, whether the user asked for it to go or not. Clearing the history moves focus to its heading, and removing one row moves it to the row that took its place, along with a spoken confirmation that something went. A successful scan releases the camera, which takes the torch pill with it, so focus moves to the scan button rather than to `<body>`. Recording that scan also rebuilds the row of anything already in the list, so focus goes back to the button it was on. Note that a browser blurs an element when it is merely moved in the DOM, not only when it is removed, so keeping a stable key would not save any of these on its own.
 - Live regions stay mounted and empty rather than appearing with their text. A region that arrives at the same moment as its content, or that was sitting at `display: none` until then, is not reliably announced.
 - Anything the eye gets, the ear gets. No information is left in a `title` attribute, which never appears on touch and cannot be reached by keyboard.
+- Type sizes are in `rem`, not `px`, so they follow the font size the reader has set rather than only page zoom. On a phone that setting is the one people actually change.
 - `eslint-plugin-jsx-a11y` runs on every commit, which catches the static mistakes. It does not catch the rest, so test with a screen reader before shipping interface changes.
 
 ## Browser support

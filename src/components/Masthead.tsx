@@ -10,7 +10,7 @@ function Masthead() {
         <span className="mx-1.5 text-muted">-</span>
         Sold Price Checker
       </h1>
-      <p className="mt-1 text-[13px] text-muted">
+      <p className="mt-1 text-[0.8125rem] text-muted">
         Scan a barcode to see what it recently sold for on eBay UK.
       </p>
     </header>

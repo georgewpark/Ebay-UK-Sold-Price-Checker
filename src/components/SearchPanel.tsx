@@ -46,13 +46,13 @@ function SearchPanel({ code, status, term, termRef, online, onTermChange, onSold
           {code || '–––––––'}
         </p>
         {code && (
-          <span className="shrink-0 text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
+          <span className="shrink-0 text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-muted">
             Barcode
           </span>
         )}
       </div>
 
-      <p className="mt-1 min-h-4 text-[13px] text-muted">{status.caption}</p>
+      <p className="mt-1 min-h-4 text-[0.8125rem] text-muted">{status.caption}</p>
       <p role="status" className="sr-only">
         {status.spoken}
       </p>
@@ -62,7 +62,7 @@ function SearchPanel({ code, status, term, termRef, online, onTermChange, onSold
           keydown listener to imitate both. */}
       <form onSubmit={submit} noValidate>
         <label className="mt-4 block">
-          <span className="mb-1.5 block text-[13px] font-medium text-muted">
+          <span className="mb-1.5 block text-[0.8125rem] font-medium text-muted">
             Search eBay UK for
           </span>
           <input
@@ -76,12 +76,12 @@ function SearchPanel({ code, status, term, termRef, online, onTermChange, onSold
             autoCorrect="off"
             spellCheck={false}
             enterKeyHint="search"
-            className="w-full rounded-xl border border-field bg-sunken px-3.5 py-3 text-[15px] text-ink placeholder:text-muted"
+            className="w-full rounded-xl border border-field bg-sunken px-3.5 py-3 text-[0.9375rem] text-ink placeholder:text-muted"
           />
         </label>
 
         {blocked && (
-          <p id={noteId} className="mt-2 text-[13px] text-muted">
+          <p id={noteId} className="mt-2 text-[0.8125rem] text-muted">
             {online
               ? 'Scan a barcode or type a product name to search.'
               : 'No connection, so eBay cannot open. Reconnect and try again.'}

@@ -26,7 +26,7 @@ function OfflineBanner({ online }: { online: boolean }) {
 
       {!online && (
         <div className="px-1">
-          <p className="rounded-xl border border-notice-line bg-notice px-3 py-2 text-[13px] leading-relaxed text-notice-ink">
+          <p className="rounded-xl border border-notice-line bg-notice px-3 py-2 text-[0.8125rem] leading-relaxed text-notice-ink">
             <strong className="font-semibold">You are offline.</strong> Scanning and your recent
             scans still work. Searching needs a connection, because prices open on eBay.
           </p>

@@ -135,7 +135,7 @@ function History({ entries, onRecall, onRemove, onClear }: Props) {
           <button
             type="button"
             onClick={clear}
-            className="-my-1.5 -mr-2 px-2 py-1.5 text-[13px] text-muted underline underline-offset-2"
+            className="-my-1.5 -mr-2 px-2 py-1.5 text-[0.8125rem] text-muted underline underline-offset-2"
           >
             Clear
           </button>
@@ -143,7 +143,7 @@ function History({ entries, onRecall, onRemove, onClear }: Props) {
       </div>
 
       {entries.length === 0 && (
-        <p className="py-2 text-[13px] text-muted">
+        <p className="py-2 text-[0.8125rem] text-muted">
           Nothing scanned yet. Your last 40 lookups stay on this device.
         </p>
       )}
@@ -185,9 +185,9 @@ const Row = memo(function Row({
         className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 text-left"
       >
         <span className="min-w-0">
-          <span className="block truncate text-[15px] text-ink">{entry.label}</span>
+          <span className="block truncate text-[0.9375rem] text-ink">{entry.label}</span>
           {entry.code !== entry.label && (
-            <span className="block font-mono text-[11px] tracking-wider text-muted tabular">
+            <span className="block font-mono text-[0.6875rem] tracking-wider text-muted tabular">
               {entry.code}
             </span>
           )}
@@ -199,7 +199,7 @@ const Row = memo(function Row({
         <time
           dateTime={isoScanTime(entry.at)}
           title={when}
-          className="shrink-0 text-[13px] text-muted tabular"
+          className="shrink-0 text-[0.8125rem] text-muted tabular"
         >
           <span aria-hidden="true">{formatScanTime(entry.at)}</span>
           <span className="sr-only">{when}</span>
