@@ -191,4 +191,32 @@ describe('History', () => {
     await userEvent.click(removeButton('Heinz Beans'))
     expect(screen.getByRole('status')).toHaveTextContent('Removed Heinz Beans from recent scans.')
   })
+
+  /**
+   * Scan the same item twice and both rows carry the same label. The message
+   * used to be the label alone, so the second removal wrote a string identical
+   * to the first: React touched nothing, and a live region with no change to
+   * report announces nothing at all.
+   */
+  it('still announces the second removal of two identically named rows', async () => {
+    const twice: ScanEntry[] = [
+      { code: '5000157024671', label: 'Heinz Beans', at: NOW - 1_000 },
+      { code: '5000157024671', label: 'Heinz Beans', at: NOW - 2_000 },
+    ]
+    render(<Live initial={twice} />)
+    const region = screen.getByRole('status')
+    const pressFirst = async () =>
+      userEvent.click(screen.getAllByRole('button', { name: /^Remove Heinz Beans/ })[0])
+
+    await pressFirst()
+    const first = region.textContent
+
+    await pressFirst()
+    const second = region.textContent
+
+    expect(first).toContain('Removed Heinz Beans from recent scans.')
+    expect(second).toContain('Removed Heinz Beans from recent scans.')
+    // The part that makes it a change a screen reader can notice.
+    expect(second).not.toBe(first)
+  })
 })

@@ -14,6 +14,19 @@ interface Props {
     that was just pressed: a row index, or the heading. */
 type Restore = number | 'heading'
 
+/**
+ * Scan the same item twice and you get two rows with the same label, so
+ * "Removed Heinz Beans from recent scans." can repeat word for word. React
+ * writes the identical string, the DOM never changes, and a live region with
+ * nothing to notice says nothing: the second removal was announced to nobody.
+ * The count moves every time, so there is always a change to speak, and it
+ * answers the question you would ask next anyway.
+ */
+function remaining(count: number): string {
+  if (count <= 0) return 'No scans left.'
+  return count === 1 ? '1 scan left.' : `${count} scans left.`
+}
+
 function History({ entries, onRecall, onRemove, onClear }: Props) {
   const headingId = useId()
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -88,7 +101,9 @@ function History({ entries, onRecall, onRemove, onClear }: Props) {
         (candidate) => candidate.at === entry.at && candidate.code === entry.code,
       )
       restore.current = index < 0 ? 'heading' : index
-      setMessage(`Removed ${entry.label} from recent scans.`)
+      setMessage(
+        `Removed ${entry.label} from recent scans. ${remaining(latest.current.length - 1)}`,
+      )
       onRemove(entry)
     },
     [onRemove],
