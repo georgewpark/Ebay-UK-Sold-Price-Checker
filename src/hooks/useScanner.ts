@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NO_BARCODE, openDecoder } from '../lib/decoder.ts'
+import { createDuplicateGate } from '../lib/duplicates.ts'
 import { closeFrame, createFrameGrabber } from '../lib/frame.ts'
 
 export type ScannerStatus = 'idle' | 'starting' | 'scanning'
@@ -219,8 +220,7 @@ export function useScanner(onDetect: (code: string) => void) {
     setNotice(null)
 
     const grabber = createFrameGrabber()
-    let lastValue = ''
-    let lastAt = 0
+    const fresh = createDuplicateGate(DUPLICATE_GAP)
     let failures = 0
 
     try {
@@ -256,11 +256,9 @@ export function useScanner(onDetect: (code: string) => void) {
         const value = outcome.value
         if (!value) continue
 
-        const now = Date.now()
-        const repeat = value === lastValue && now - lastAt < DUPLICATE_GAP
-        lastValue = value
-        lastAt = now
-        if (repeat) continue
+        // A gap per code, not one slot for whichever was read last: see
+        // createDuplicateGate for what a single slot let through.
+        if (!fresh.accepts(value, Date.now())) continue
 
         if (!continuousRef.current) {
           stop(SCANNED_NOTICE)
