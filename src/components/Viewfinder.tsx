@@ -21,6 +21,22 @@ interface Props {
 /** Drawn from the same numbers the decoder crops to, so the box tells the truth. */
 const RETICLE_INSET = `${RETICLE.y * 100}% ${RETICLE.x * 100}%`
 
+/**
+ * The floor App keeps between flashes, and the only thing holding them apart.
+ * The duplicate gate stops the same item firing twice, but a sweep along a
+ * shelf is a stream of genuinely different codes it has no reason to hold back,
+ * and continuous mode reads as fast as the camera delivers frames. A flash per
+ * read is then a strobe over most of the screen rather than a confirmation: the
+ * accent at 85% over a dark shot swings relative luminance by about 0.5, well
+ * past the 0.1 that counts as a flash.
+ *
+ * Comfortably longer than the 360ms animation below, so flashes read as
+ * separate pulses rather than one smear and the rate tops out at two a second.
+ * WCAG 2.3.1 allows three, but a floor equal to the animation would have sat
+ * exactly on that limit with nothing in hand.
+ */
+export const FLASH_GAP_MS = 500
+
 function Viewfinder({
   videoRef,
   status,
@@ -92,9 +108,13 @@ function Viewfinder({
         </div>
       )}
 
+      {/* The duration stays a literal because Tailwind only generates class
+          names it can read whole in the source, so it cannot be built from a
+          constant. It has to stay shorter than FLASH_GAP_MS above. */}
       {flashKey > 0 && (
         <div
           key={flashKey}
+          data-flash={flashKey}
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 animate-[flash_360ms_ease-out_forwards] bg-accent"
         />

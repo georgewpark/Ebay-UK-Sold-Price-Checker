@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Masthead from './components/Masthead.tsx'
 import OfflineBanner from './components/OfflineBanner.tsx'
-import Viewfinder from './components/Viewfinder.tsx'
+import Viewfinder, { FLASH_GAP_MS } from './components/Viewfinder.tsx'
 import SearchPanel from './components/SearchPanel.tsx'
 import History from './components/History.tsx'
 import { useHistory } from './hooks/useHistory.ts'
@@ -23,6 +23,7 @@ export default function App() {
   const { entries, record, remove, clear } = useHistory()
   const lookup = useRef<AbortController | null>(null)
   const termRef = useRef<HTMLInputElement>(null)
+  const flashedAt = useRef(0)
 
   // Warm the barcode reader while the user is still reading the page. On the
   // fallback path this also pulls the WASM binary down behind it, so the slow
@@ -40,7 +41,15 @@ export default function App() {
 
   const handleDetect = useCallback(
     (value: string) => {
-      setFlashKey((key) => key + 1)
+      // Only the flash is held back, never the read: the barcode, the lookup
+      // and the history row all still land on every scan. See FLASH_GAP_MS for
+      // why a flash per read is a strobe rather than a confirmation.
+      const now = Date.now()
+      if (now - flashedAt.current >= FLASH_GAP_MS) {
+        flashedAt.current = now
+        setFlashKey((key) => key + 1)
+      }
+
       navigator.vibrate?.(45)
 
       lookup.current?.abort()
