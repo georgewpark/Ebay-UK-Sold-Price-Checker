@@ -108,7 +108,13 @@ function Viewfinder({
         {/* aria-disabled rather than disabled. Browsers blur an element at the
             moment it becomes disabled, so pressing this with a keyboard used to
             drop focus to <body> just as the permission prompt opened. Starting
-            is a no-op instead, the way SearchPanel handles its blocked buttons. */}
+            is a no-op instead, the way SearchPanel handles its blocked buttons.
+
+            The focus ring is drawn inside the pill. An outline sits outside the
+            border box, which here means on top of the camera feed, so whatever
+            colour it is there will be a frame that hides it: a dark ring
+            vanished against the idle lens, and a white one would vanish against
+            a bright shot. Inside, it only ever meets this button's own fill. */}
         <button
           ref={scanRef}
           type="button"
@@ -116,7 +122,7 @@ function Viewfinder({
             if (status !== 'starting') onToggleScan()
           }}
           aria-disabled={status === 'starting'}
-          className="rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-[#111113] shadow-lg backdrop-blur transition focus-visible:outline-[#111113] focus-visible:outline-offset-0 active:scale-[0.98] aria-disabled:opacity-60"
+          className="rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-[#111113] shadow-lg backdrop-blur transition focus-visible:-outline-offset-3 focus-visible:outline-[#111113] active:scale-[0.98] aria-disabled:opacity-60"
         >
           {status === 'starting' ? 'Starting' : scanning ? 'Stop' : 'Start scanning'}
         </button>
@@ -170,9 +176,12 @@ function PillToggle({
            reached by keyboard, and screen reader support for it is patchy. */
         title={hint}
         aria-describedby={hint ? hintId : undefined}
-        className={`flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg backdrop-blur transition focus-visible:outline-offset-0 ${
+        /* Inset, for the same reason as the scan button: outside the pill the
+           ring lands on the camera feed, and no single colour survives every
+           frame. Each state picks the ring that clears 4.5:1 on its own fill. */
+        className={`flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold shadow-lg backdrop-blur transition focus-visible:-outline-offset-3 ${
           pressed
-            ? 'bg-accent text-accent-ink focus-visible:outline-[#171a0c]'
+            ? 'bg-accent text-accent-ink focus-visible:outline-accent-ink'
             : 'bg-[#1b1b1f] text-white ring-1 ring-white/70 focus-visible:outline-white'
         }`}
       >
