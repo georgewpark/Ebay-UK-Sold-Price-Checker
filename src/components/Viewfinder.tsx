@@ -74,10 +74,14 @@ function Viewfinder({
         className="h-full w-full object-cover"
       />
 
+      {/* The accent is only readable over a dark shot: against a pale label,
+          which is exactly what people point this at, it falls to about 1.3:1.
+          A drop-shadow follows the painted shape rather than the box, so the
+          corners and the sweep line keep a dark edge whatever is behind them. */}
       {scanning && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute"
+          className="pointer-events-none absolute drop-shadow-[0_0_1.5px_rgba(0,0,0,0.9)]"
           style={{ inset: RETICLE_INSET }}
         >
           <Corner className="left-0 top-0 border-l-3 border-t-3 rounded-tl-md" />
